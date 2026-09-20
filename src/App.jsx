@@ -1,149 +1,73 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks } from './lib/data'
-import { accountBalance } from './lib/metrics'
-import { money } from './lib/format'
-import Login from './components/Login'
-import Performance from './components/Performance'
-import Pending from './components/Pending'
-import Graded from './components/Graded'
-import Daily from './components/Daily'
+-- Run once in the Supabase SQL Editor.
+-- Each signed-in user sees only the books (bots) granted to them in
+-- user_book_access. Enforced by the database, not the website: a user
+-- without a grant gets no rows even if they call the API directly.
 
-const REFRESH_MS = 60_000
-const BOOKS = [
-  { name: 'BetInAsian', currency: 'USD' },
-  { name: 'Mise-o-jeu', currency: 'CAD' },
-]
+create table if not exists user_book_access (
+    user_id    uuid     not null references auth.users (id) on delete cascade,
+    book_id    smallint not null references dim_book on delete cascade,
+    granted_at timestamptz not null default now(),
+    primary key (user_id, book_id)
+);
+alter table user_book_access enable row level security;
 
-export default function App() {
-  const [session, setSession] = useState(undefined) // undefined = still checking
+drop policy if exists read_own on user_book_access;
+create policy read_own on user_book_access
+    for select to authenticated
+    using (user_id = (select auth.uid()));
 
-  useEffect(() => {
-    if (!supabase) return
-    supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => data.subscription.unsubscribe()
-  }, [])
+-- Wagers: only books you have been granted.
+drop policy if exists read_all on fact_wager;
+drop policy if exists read_granted_books on fact_wager;
+create policy read_granted_books on fact_wager
+    for select to authenticated
+    using (exists (select 1 from user_book_access g
+                   where g.book_id = fact_wager.book_id
+                     and g.user_id = (select auth.uid())));
 
-  if (configError) return <p className="fatal">{configError}</p>
-  if (session === undefined) return null
-  if (!session) return <Login />
-  return <Dashboard email={session.user.email} />
-}
+-- Books: the header only lists the ones you can open.
+drop policy if exists read_all on dim_book;
+drop policy if exists read_granted_books on dim_book;
+create policy read_granted_books on dim_book
+    for select to authenticated
+    using (exists (select 1 from user_book_access g
+                   where g.book_id = dim_book.book_id
+                     and g.user_id = (select auth.uid())));
 
-function Dashboard({ email }) {
-  const [rows, setRows] = useState(null)
-  const [accounts, setAccounts] = useState({})
-  const [bookInfo, setBookInfo] = useState({})
-  const [error, setError] = useState(null)
-  const [loadedAt, setLoadedAt] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState('performance')
-  const [filters, setFilters] = useState({
-    book: BOOKS[0].name, period: '30d', accounts: [], includeManual: true,
-  })
+-- Accounts: only ones that appear in wagers you can see (so a BetInAsia-only
+-- user never sees the Mise account names).
+create index if not exists fact_wager_account_id_idx on fact_wager (account_id);
+drop policy if exists read_all on dim_account;
+drop policy if exists read_visible_accounts on dim_account;
+create policy read_visible_accounts on dim_account
+    for select to authenticated
+    using (exists (select 1 from fact_wager f where f.account_id = dim_account.account_id));
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    try {
-      const [w, a, b] = await Promise.all([fetchWagers(), fetchAccounts(), fetchBooks()])
-      setRows(w)
-      setAccounts(a)
-      setBookInfo(b)
-      setError(null)
-      setLoadedAt(new Date())
-    } catch (e) {
-      setError(e.message || String(e))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    load()
-    const id = setInterval(load, REFRESH_MS)
-    return () => clearInterval(id)
-  }, [load])
+-- ---------------------------------------------------------------------------
+--  Granting access. Nobody sees anything until they are granted a book, so
+--  grant yourself first. Replace the emails; book names are 'BetInAsian' and
+--  'Mise-o-jeu'.
+-- ---------------------------------------------------------------------------
+insert into user_book_access (user_id, book_id)
+select u.id, b.book_id
+from auth.users u
+cross join dim_book b
+where u.email = 'your-email@example.com'                 -- you: every book
+on conflict do nothing;
 
-  const book = BOOKS.find((b) => b.name === filters.book)
-  const bookRows = useMemo(() => (rows ?? []).filter((r) => r.book === filters.book), [rows, filters.book])
-  const openCount = bookRows.filter((r) => r.status !== 'graded').length
-  const bal = useMemo(() => accountBalance(bookRows, bookInfo[filters.book]), [bookRows, bookInfo, filters.book])
-
-  const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
-
-  return (
-    <div className="shell">
-      <header className="top">
-        <div className="brand">
-          <span className="logo" aria-hidden="true">BL</span>
-          <h1>Bot ledger</h1>
-        </div>
-        <div className="seg books" role="tablist" aria-label="Book">
-          {BOOKS.map((b) => (
-            <button key={b.name} role="tab" aria-selected={filters.book === b.name}
-              className={filters.book === b.name ? 'on' : ''} onClick={() => setBook(b.name)}>
-              {b.name} <span className="ccy">{b.currency}</span>
-            </button>
-          ))}
-        </div>
-        {bal && (
-          <div className="balance" title={`${money(bal.startingBalance, book.currency)} on ${bal.since}, plus every settled bet since`}>
-            <div>
-              <span className="balance-label">Balance</span>
-              <span className="balance-value">{money(bal.balance, book.currency)}</span>
-            </div>
-            <div>
-              <span className="balance-label">In play</span>
-              <span className="balance-value dim">{money(bal.inPlay, book.currency)}</span>
-            </div>
-          </div>
-        )}
-        <div className="who">
-          <span className="stamp">
-            <span className={`dot ${error ? 'bad' : ''}`} aria-hidden="true" />
-            {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
-          </span>
-          <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-          <button className="btn" onClick={() => supabase.auth.signOut()} title={email}>Sign out</button>
-        </div>
-      </header>
-
-      <nav className="tabs" role="tablist" aria-label="View">
-        {[
-          ['performance', 'Overview'],
-          ['daily', 'Daily'],
-          ['pending', 'Pending'],
-          ['graded', 'Graded'],
-        ].map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''}
-            onClick={() => setTab(id)}>
-            {label}{id === 'pending' && <span className="count">{openCount}</span>}
-          </button>
-        ))}
-      </nav>
-
-      {error && (
-        <p className="error">
-          Could not load wagers: {error}. Check that your user can read v_wager, then press Refresh.
-        </p>
-      )}
-      {!rows && !error && <p className="muted pad">Loading wagers…</p>}
-
-      {rows && (
-        <main>
-          {tab === 'performance' && (
-            <Performance rows={bookRows} filters={filters} setFilters={setFilters}
-              currency={book.currency} accountNames={accounts} />
-          )}
-          {tab === 'daily' && (
-            <Daily rows={bookRows} filters={filters} setFilters={setFilters}
-              currency={book.currency} accountNames={accounts} />
-          )}
-          {tab === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
-          {tab === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
-        </main>
-      )}
-    </div>
-  )
-}
+-- Examples (uncomment and edit):
+-- insert into user_book_access (user_id, book_id)
+-- select u.id, b.book_id from auth.users u, dim_book b
+-- where u.email = 'kevin@example.com' and b.name = 'Mise-o-jeu'
+-- on conflict do nothing;
+--
+-- Take a book away:
+-- delete from user_book_access g using auth.users u, dim_book b
+-- where g.user_id = u.id and g.book_id = b.book_id
+--   and u.email = 'kevin@example.com' and b.name = 'Mise-o-jeu';
+--
+-- Who sees what:
+-- select u.email, b.name from user_book_access g
+-- join auth.users u on u.id = g.user_id join dim_book b using (book_id)
+-- order by 1, 2;

@@ -37,6 +37,7 @@ export function summarize(rows) {
     clvCoverage: graded.length ? withClv.length / graded.length : 0,
     expected: sum(withExp.map((r) => r.expected_profit)),
     expCoverage: graded.length ? withExp.length / graded.length : 0,
+    expYield: expYield(withExp),
     openCount: open.length,
     openStake: sum(open.map((r) => r.stake)),
     unlogged: open.filter((r) => r.status === 'unlogged').length,
@@ -109,6 +110,14 @@ export function oddsBand(o) {
 
 const round2 = (x) => Math.round(x * 100) / 100
 
+// Expected profit over the stake of the bets that have one. Bets with no
+// fair price logged (BetInAsia-only rows) are left out rather than counted
+// as zero, which would drag the figure down.
+function expYield(rows) {
+  const stake = sum(rows.map((r) => r.stake))
+  return stake ? (sum(rows.map((r) => r.expected_profit)) / stake) * 100 : null
+}
+
 // ---- daily / weekly -------------------------------------------------------
 // Days are Montreal calendar days, matching v_wager.placed_date_local.
 // Weeks run Monday to Sunday. Date strings are 'YYYY-MM-DD'.
@@ -145,6 +154,7 @@ function dayStats(rs) {
     yield: settledHandle ? (profit / settledHandle) * 100 : null,
     avgClv: withClv.length ? sum(withClv.map((r) => r.clv_pct)) / withClv.length : null,
     expected: sum(graded.map((r) => r.expected_profit ?? 0)),
+    expYield: expYield(graded.filter((r) => r.expected_profit != null)),
   }
 }
 

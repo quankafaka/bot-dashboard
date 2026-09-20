@@ -32,8 +32,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
           sub={t.open ? `${t.settled} settled, ${t.open} open` : 'All settled'} />
         <Card label="Handle" value={money(t.handle, currency)}
           sub={t.wagers ? `${money(t.handle / t.wagers, currency)} average stake` : 'No wagers'} />
-        <Card label="Yield" value={pct(t.yield, { digits: 2 })} valueTone={tone(t.yield)}
-          sub="Profit over settled handle" />
+        <Card label="Expected yield" value={pct(t.expYield, { digits: 2 })} valueTone={tone(t.expYield)}
+          sub={`Actual yield ${pct(t.yield, { digits: 2 })}`} />
         <Card label="Average CLV" value={pct(t.avgClv, { digits: 2 })} valueTone={tone(t.avgClv)}
           sub="Against the closing fair price" />
       </div>

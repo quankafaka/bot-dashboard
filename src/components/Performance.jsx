@@ -24,8 +24,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <Card label="Bets" value={s.bets.toLocaleString('en-CA')}
           sub={`${s.openCount} open, ${money(s.openStake, currency)} at risk`} />
         <Card label="Turnover" value={money(s.turnover, currency)} sub="Settled bets only" />
-        <Card label="Yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
-          sub={`Expected ${pct(s.turnover ? (s.expected / s.turnover) * 100 : null, { digits: 2 })}`} />
+        <Card label="Expected yield" value={pct(s.expYield, { digits: 2 })} valueTone={tone(s.expYield)}
+          sub={`Actual yield ${pct(s.roi, { digits: 2 })}`} />
         <Card label="Average CLV" value={pct(s.avgClv, { digits: 2 })} valueTone={tone(s.avgClv)}
           sub={s.beatClose != null ? `Beat the close on ${s.beatClose.toFixed(0)}% of bets` : ''} />
       </div>

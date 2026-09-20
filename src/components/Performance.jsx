@@ -23,11 +23,11 @@ export default function Performance({ rows, filters, setFilters, currency, accou
           sub={s.bets ? `${money(Math.abs(luck), currency)} ${luck >= 0 ? 'above' : 'below'} expected` : 'No settled bets'} />
         <Card label="Bets" value={s.bets.toLocaleString('en-CA')}
           sub={`${s.openCount} open, ${money(s.openStake, currency)} at risk`} />
+        <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
         <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
-          sub="Profit over settled turnover" />
+          sub="Profit over settled handle" />
         <Card label="Expected yield" value={pct(s.expYield, { digits: 2 })} valueTone={tone(s.expYield)}
           sub="What the prices were worth" />
-        <Card label="Turnover" value={money(s.turnover, currency)} sub="Settled bets only" />
       </div>
 
       <section className="panel">

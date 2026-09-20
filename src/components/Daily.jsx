@@ -28,14 +28,14 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
       <div className="cards">
         <Card label="Profit" value={money(t.profit, currency, { sign: true })} valueTone={tone(t.profit)}
           sub={`Expected ${money(t.expected, currency, { sign: true })}`} />
-        <Card label="Wagers" value={t.wagers.toLocaleString('en-CA')}
+        <Card label="Bets" value={t.wagers.toLocaleString('en-CA')}
           sub={t.open ? `${t.settled} settled, ${t.open} open` : 'All settled'} />
+        <Card label="Handle" value={money(t.handle, currency)}
+          sub={t.wagers ? `${money(t.handle / t.wagers, currency)} average stake` : 'No wagers'} />
         <Card label="Actual yield" value={pct(t.yield, { digits: 2 })} valueTone={tone(t.yield)}
           sub="Profit over settled handle" />
         <Card label="Expected yield" value={pct(t.expYield, { digits: 2 })} valueTone={tone(t.expYield)}
           sub="What the prices were worth" />
-        <Card label="Handle" value={money(t.handle, currency)}
-          sub={t.wagers ? `${money(t.handle / t.wagers, currency)} average stake` : 'No wagers'} />
       </div>
 
       <section className="panel">

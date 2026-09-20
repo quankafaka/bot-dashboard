@@ -56,11 +56,11 @@ export default function Performance({ rows, filters, setFilters, currency, accou
               <tr>
                 <th scope="col">{DIMENSIONS.find((d) => d.id === dim).label}</th>
                 <th scope="col" className="num">Bets</th>
-                <th scope="col" className="num">Turnover</th>
+                <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
-                <th scope="col" className="num">Yield</th>
-                <th scope="col" className="num">Avg CLV</th>
-                <th scope="col" className="num">Expected</th>
+                <th scope="col" className="num">Actual yield</th>
+                <th scope="col" className="num">Expected yield</th>
+                <th scope="col" className="num">Expected profit</th>
               </tr>
             </thead>
             <tbody>
@@ -71,7 +71,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                   <td className="num">{money(g.turnover, currency)}</td>
                   <td className={`num ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</td>
                   <td className={`num ${tone(g.roi)}`}>{pct(g.roi)}</td>
-                  <td className={`num ${tone(g.avgClv)}`}>{pct(g.avgClv, { digits: 2 })}</td>
+                  <td className={`num ${tone(g.expYield)}`}>{pct(g.expYield, { digits: 2 })}</td>
                   <td className="num">{money(g.expected, currency, { sign: true })}</td>
                 </tr>
               ))}

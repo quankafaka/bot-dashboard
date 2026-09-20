@@ -69,12 +69,12 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
             <thead>
               <tr>
                 <th scope="col">Day</th>
-                <th scope="col" className="num">Wagers</th>
+                <th scope="col" className="num">Bets</th>
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
-                <th scope="col" className="num">Yield</th>
-                <th scope="col" className="num">Avg CLV</th>
-                <th scope="col" className="num">Expected</th>
+                <th scope="col" className="num">Actual yield</th>
+                <th scope="col" className="num">Expected yield</th>
+                <th scope="col" className="num">Expected profit</th>
                 <th scope="col" className="num">Open</th>
               </tr>
             </thead>
@@ -90,7 +90,7 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                       <td className="num">{money(d.handle, currency)}</td>
                       <td className={`num ${tone(d.profit)}`}>{money(d.profit, currency, { sign: true })}</td>
                       <td className={`num ${tone(d.yield)}`}>{pct(d.yield)}</td>
-                      <td className={`num ${tone(d.avgClv)}`}>{pct(d.avgClv, { digits: 2 })}</td>
+                      <td className={`num ${tone(d.expYield)}`}>{pct(d.expYield, { digits: 2 })}</td>
                       <td className="num">{money(d.expected, currency, { sign: true })}</td>
                       <td className="num">{d.open || '—'}</td>
                     </>
@@ -105,7 +105,7 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                 <td className="num">{money(t.handle, currency)}</td>
                 <td className={`num ${tone(t.profit)}`}>{money(t.profit, currency, { sign: true })}</td>
                 <td className={`num ${tone(t.yield)}`}>{pct(t.yield)}</td>
-                <td className={`num ${tone(t.avgClv)}`}>{pct(t.avgClv, { digits: 2 })}</td>
+                <td className={`num ${tone(t.expYield)}`}>{pct(t.expYield, { digits: 2 })}</td>
                 <td className="num">{money(t.expected, currency, { sign: true })}</td>
                 <td className="num">{t.open || '—'}</td>
               </tr>

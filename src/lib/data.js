@@ -1,73 +1,63 @@
--- Run once in the Supabase SQL Editor.
--- Each signed-in user sees only the books (bots) granted to them in
--- user_book_access. Enforced by the database, not the website: a user
--- without a grant gets no rows even if they call the API directly.
+import { supabase } from '../supabase'
 
-create table if not exists user_book_access (
-    user_id    uuid     not null references auth.users (id) on delete cascade,
-    book_id    smallint not null references dim_book on delete cascade,
-    granted_at timestamptz not null default now(),
-    primary key (user_id, book_id)
-);
-alter table user_book_access enable row level security;
+// Supabase's API returns at most 1,000 rows per request, so read in pages.
+const PAGE = 1000
 
-drop policy if exists read_own on user_book_access;
-create policy read_own on user_book_access
-    for select to authenticated
-    using (user_id = (select auth.uid()));
+const WAGER_COLUMNS = [
+  'wager_id', 'source', 'status', 'placed_at', 'placed_date_local',
+  'sport', 'league', 'country', 'home_team', 'away_team', 'start_time',
+  'market_type', 'period', 'variant', 'book', 'currency', 'account',
+  'selection', 'line', 'bet_ref', 'is_freebet',
+  'price_filled', 'stake', 'to_return',
+  'ev_pct_bot', 'ev_pct_log', 'clv_pct', 'expected_profit', 'current_ev_pct',
+  'result', 'profit', 'home_score', 'away_score',
+].join(',')
 
--- Wagers: only books you have been granted.
-drop policy if exists read_all on fact_wager;
-drop policy if exists read_granted_books on fact_wager;
-create policy read_granted_books on fact_wager
-    for select to authenticated
-    using (exists (select 1 from user_book_access g
-                   where g.book_id = fact_wager.book_id
-                     and g.user_id = (select auth.uid())));
+const NUMERIC = ['line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
+  'clv_pct', 'expected_profit', 'current_ev_pct', 'profit']
 
--- Books: the header only lists the ones you can open.
-drop policy if exists read_all on dim_book;
-drop policy if exists read_granted_books on dim_book;
-create policy read_granted_books on dim_book
-    for select to authenticated
-    using (exists (select 1 from user_book_access g
-                   where g.book_id = dim_book.book_id
-                     and g.user_id = (select auth.uid())));
+export async function fetchWagers() {
+  const rows = []
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager')
+      .select(WAGER_COLUMNS)
+      .order('placed_at', { ascending: true })
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    rows.push(...data)
+    if (data.length < PAGE) break
+  }
+  // Postgres numerics arrive as strings; convert once here.
+  for (const r of rows) {
+    for (const k of NUMERIC) r[k] = r[k] == null ? null : Number(r[k])
+    r.placedMs = Date.parse(r.placed_at)
+    r.startMs = r.start_time ? Date.parse(r.start_time) : null
+  }
+  return rows
+}
 
--- Accounts: only ones that appear in wagers you can see (so a BetInAsia-only
--- user never sees the Mise account names).
-create index if not exists fact_wager_account_id_idx on fact_wager (account_id);
-drop policy if exists read_all on dim_account;
-drop policy if exists read_visible_accounts on dim_account;
-create policy read_visible_accounts on dim_account
-    for select to authenticated
-    using (exists (select 1 from fact_wager f where f.account_id = dim_account.account_id));
+export async function fetchAccounts() {
+  const { data, error } = await supabase.from('dim_account').select('tag, description')
+  if (error) throw error
+  return Object.fromEntries(data.map((a) => [a.tag, a.description || a.tag]))
+}
 
+// The books this user may see, as granted in user_book_access (the database
+// only returns those). Balance columns come from migration 003.
+const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu']
+const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
--- ---------------------------------------------------------------------------
---  Granting access. Nobody sees anything until they are granted a book, so
---  grant yourself first. Replace the emails; book names are 'BetInAsian' and
---  'Mise-o-jeu'.
--- ---------------------------------------------------------------------------
-insert into user_book_access (user_id, book_id)
-select u.id, b.book_id
-from auth.users u
-cross join dim_book b
-where u.email = 'your-email@example.com'                 -- you: every book
-on conflict do nothing;
-
--- Examples (uncomment and edit):
--- insert into user_book_access (user_id, book_id)
--- select u.id, b.book_id from auth.users u, dim_book b
--- where u.email = 'kevin@example.com' and b.name = 'Mise-o-jeu'
--- on conflict do nothing;
---
--- Take a book away:
--- delete from user_book_access g using auth.users u, dim_book b
--- where g.user_id = u.id and g.book_id = b.book_id
---   and u.email = 'kevin@example.com' and b.name = 'Mise-o-jeu';
---
--- Who sees what:
--- select u.email, b.name from user_book_access g
--- join auth.users u on u.id = g.user_id join dim_book b using (book_id)
--- order by 1, 2;
+export async function fetchBooks() {
+  const { data, error } = await supabase.from('dim_book').select('*')
+  if (error) throw error
+  return data
+    .map((b) => ({
+      name: b.name,
+      currency: b.currency,
+      startingBalance: b.starting_balance == null ? null : Number(b.starting_balance),
+      balanceStart: b.balance_start ?? null,
+    }))
+    .sort((a, b) => rank(a.name) - rank(b.name))
+}

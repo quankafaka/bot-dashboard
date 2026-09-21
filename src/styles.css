@@ -155,6 +155,9 @@ tr.today > * { background: var(--today); }
 .r-loss, .r-half_loss { color: var(--red); }
 .r-push, .r-void { color: var(--muted-2); }
 
+.after { margin-top: 36px; }
+.lede code { font-family: var(--mono); font-size: 12px; background: var(--raised); padding: 1px 5px; border-radius: 4px; }
+.after h2 { margin-bottom: 6px; }
 .lede { margin: 0 0 12px; max-width: 90ch; color: var(--muted); }
 .empty-state { padding: 48px 0; color: var(--muted); }
 .search { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; }

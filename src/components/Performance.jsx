@@ -4,10 +4,12 @@ import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
 import Filters from './Filters'
+import { useIsMobile } from '../lib/useIsMobile'
 import { Card } from './Daily'
 
 export default function Performance({ rows, filters, setFilters, currency, accountNames }) {
   const [dim, setDim] = useState('sport')
+  const mobile = useIsMobile()
   const { format: oddsFormat } = useOddsFormat()
   const rowLabel = (key) => {
     if (dim === 'account') return accountNames[key] ?? key
@@ -57,6 +59,23 @@ export default function Performance({ rows, filters, setFilters, currency, accou
             ))}
           </div>
         </header>
+        {mobile ? (
+          <div className="day-list">
+            {table.map((g) => (
+              <div key={g.key} className="day-row">
+                <div>
+                  <div className="day-name">{rowLabel(g.key)}</div>
+                  <div className="sub">{g.bets} bets, {money(g.turnover, currency)} handle</div>
+                </div>
+                <div className="day-fig">
+                  <div className={`bc-money ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</div>
+                  <div className="sub">{pct(g.roi)} actual, {pct(g.expYield)} exp.</div>
+                </div>
+              </div>
+            ))}
+            {table.length === 0 && <p className="muted pad-s">No settled bets match these filters.</p>}
+          </div>
+        ) : (
         <div className="scroll">
           <table>
             <thead>
@@ -88,6 +107,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
             </tbody>
           </table>
         </div>
+        )}
       </section>
     </>
   )

@@ -124,6 +124,19 @@ function Dashboard({ email }) {
           <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
           <button className="btn" onClick={() => supabase.auth.signOut()} title={email}>Sign out</button>
         </div>
+        {/* Phones: the same controls, folded into one button. */}
+        <details className="menu">
+          <summary className="btn icon" aria-label="Menu">⋯</summary>
+          <div className="menu-panel">
+            <OddsToggle />
+            <span className="stamp">
+              <span className={`dot ${error ? 'bad' : ''}`} aria-hidden="true" />
+              {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
+            </span>
+            <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+            <button className="btn" onClick={() => supabase.auth.signOut()}>Sign out {email}</button>
+          </div>
+        </details>
       </header>
 
       <nav className="tabs" role="tablist" aria-label="View">

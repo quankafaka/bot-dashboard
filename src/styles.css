@@ -207,3 +207,101 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   .cards { grid-template-columns: 1fr; }
   .search input { min-width: 0; width: 100%; }
 }
+
+/* ---- home-screen app: keep clear of the notch and the home bar -------- */
+.shell {
+  padding-top: max(16px, env(safe-area-inset-top));
+  padding-left: max(20px, env(safe-area-inset-left));
+  padding-right: max(20px, env(safe-area-inset-right));
+}
+
+/* ---- phone menu (hidden on bigger screens) ---------------------------- */
+.menu { display: none; position: relative; }
+.menu > summary { list-style: none; cursor: pointer; font-size: 18px; line-height: 1; padding: 6px 12px; }
+.menu > summary::-webkit-details-marker { display: none; }
+.menu-panel {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; min-width: 230px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 10px;
+  background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px; padding: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.menu-panel .seg { align-self: flex-start; }
+.menu-panel .btn { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---- bet cards and row lists (phones) --------------------------------- */
+.cards-list { display: flex; flex-direction: column; gap: 8px; }
+.bet-card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; display: flex; flex-direction: column; gap: 5px;
+}
+.bc-head { display: flex; justify-content: space-between; gap: 12px; }
+.bc-main { min-width: 0; }
+.bc-game { font-weight: 600; }
+.bc-bet { color: var(--text); }
+.bc-right { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; text-align: right; }
+.bc-money { font: 700 15px var(--mono); white-space: nowrap; }
+.bc-dim { color: var(--muted-2); font-size: 12px; }
+.bc-facts { font: 500 12px var(--mono); color: var(--muted); }
+.bc-alert { font-size: 12px; color: var(--muted); }
+.bc-alert .alert-move { font-size: 12px; color: var(--text); }
+.bc-meta { font-size: 12px; color: var(--muted-2); }
+.bc-meta .tag { margin-left: 6px; }
+.bc-id { margin-left: 8px; font: 500 11px var(--mono); color: var(--muted-2); }
+
+.day-list { display: flex; flex-direction: column; }
+.day-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+}
+.day-row:last-child { border-bottom: 0; }
+.day-row.today { background: var(--today); }
+.day-row.total { background: #0a0a0b; border-top: 1px solid var(--border-strong); }
+.day-name { font-weight: 600; }
+.day-fig { text-align: right; flex-shrink: 0; }
+.pad-s { padding: 12px 14px; }
+
+@media (max-width: 700px) {
+  body { font-size: 14px; }
+  .shell {
+    padding-top: max(12px, env(safe-area-inset-top));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+  .menu-panel .stamp { display: inline-flex; }
+
+  /* header: logo + short title, book switch, balance, menu */
+  .top { grid-template-columns: 1fr auto; gap: 10px; }
+  .brand h1 { font-size: 15px; }
+  .who { display: none; }
+  .menu { display: block; grid-column: 2; grid-row: 1; }
+  .books { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
+  .books button { flex: 1; }
+  .balance { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; justify-content: space-between; }
+
+  /* tabs: a bar at the bottom, in reach of a thumb */
+  .tabs {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    background: rgba(12, 12, 13, 0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border); border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .tabs button {
+    padding: 12px 4px 14px; border-bottom: 0; border-top: 2px solid transparent; margin: 0;
+    font-size: 13px;
+  }
+  .tabs button.on { border-top-color: var(--green); border-bottom-color: transparent; }
+  main { margin-top: 16px; }
+
+  /* filters wrap; long segment groups scroll sideways instead of breaking */
+  .toolbar .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .toolbar .seg button { white-space: nowrap; }
+  .panel-head { padding: 14px 16px; }
+  .panel-head .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .card { padding: 14px; }
+  .card-value { font-size: 18px; }
+  .chart { height: 240px; padding: 14px 8px 4px 0; }
+  .week-nav { width: 100%; justify-content: space-between; }
+}

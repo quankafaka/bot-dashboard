@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { money, pct, when, tone } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell from './AlertCell'
+import BetCard from './BetCard'
+import { useIsMobile } from '../lib/useIsMobile'
 import { marketLabel } from '../lib/metrics'
 
 // Two lists. PENDING bets are waiting on a result. UNLOGGED bets are not:
@@ -45,6 +47,17 @@ export default function Pending({ rows, currency, accountNames }) {
 
 function BetTable({ rows, currency, accountNames, showId = false }) {
   const fmt = useOdds()
+  const mobile = useIsMobile()
+  if (mobile) {
+    return (
+      <div className="cards-list">
+        {rows.map((r) => (
+          <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
+            mode={showId ? 'ungraded' : 'pending'} />
+        ))}
+      </div>
+    )
+  }
   return (
     <div className="scroll">
       <table>

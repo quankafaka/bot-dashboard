@@ -3,11 +3,13 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Refere
 import { applyFilters, week, localToday, weekStart, addDays } from '../lib/metrics'
 import { money, pct, tone, dayLabel, shortDay, shortDate } from '../lib/format'
 import Filters from './Filters'
+import { useIsMobile } from '../lib/useIsMobile'
 
 export default function Daily({ rows, filters, setFilters, currency, accountNames }) {
   const thisWeek = weekStart(localToday())
   const [start, setStart] = useState(thisWeek)
   const today = localToday()
+  const mobile = useIsMobile()
 
   const filtered = useMemo(() => applyFilters(rows, { ...filters, period: 'all' }), [rows, filters])
   const w = useMemo(() => week(filtered, start), [filtered, start])
@@ -64,6 +66,39 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
       </section>
 
       <section className="panel">
+        {mobile ? (
+          <div className="day-list">
+            {w.days.map((d) => (
+              <div key={d.date} className={`day-row ${d.date === today ? 'today' : ''}`}>
+                <div>
+                  <div className="day-name">{dayLabel(d.date)}{d.date === today && <span className="tag">Today</span>}</div>
+                  <div className="sub">
+                    {d.date > today ? 'Not played yet'
+                      : `${d.wagers} bets, ${money(d.handle, currency)} handle${d.open ? `, ${d.open} open` : ''}`}
+                  </div>
+                </div>
+                {d.date <= today && (
+                  <div className="day-fig">
+                    <div className={`bc-money ${tone(d.profit)}`}>{money(d.profit, currency, { sign: true })}</div>
+                    <div className="sub">
+                      {pct(d.yield)} actual, {pct(d.expYield, { digits: 1 })} exp.
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div className="day-row total">
+              <div>
+                <div className="day-name">Week</div>
+                <div className="sub">{t.wagers} bets, {money(t.handle, currency)} handle</div>
+              </div>
+              <div className="day-fig">
+                <div className={`bc-money ${tone(t.profit)}`}>{money(t.profit, currency, { sign: true })}</div>
+                <div className="sub">{pct(t.yield)} actual, {pct(t.expYield)} exp.</div>
+              </div>
+            </div>
+          </div>
+        ) : (
         <div className="scroll">
           <table>
             <thead>
@@ -112,6 +147,7 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
             </tfoot>
           </table>
         </div>
+        )}
       </section>
     </>
   )

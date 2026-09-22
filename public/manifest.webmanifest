@@ -1,0 +1,16 @@
+{
+  "name": "Steam chasing dashboard",
+  "short_name": "Steam chasing",
+  "description": "Pending and graded wagers for the BetInAsia and Mise-o-jeu bots.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0c0d",
+  "theme_color": "#0c0c0d",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

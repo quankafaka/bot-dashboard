@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { money, pct, when, tone } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell from './AlertCell'
+import BetCard from './BetCard'
+import { useIsMobile } from '../lib/useIsMobile'
 import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
 
 const PAGE = 100
@@ -13,6 +15,7 @@ export default function Graded({ rows, currency, accountNames }) {
   const [q, setQ] = useState('')
   const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
+  const mobile = useIsMobile()
 
   const graded = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -30,6 +33,14 @@ export default function Graded({ rows, currency, accountNames }) {
           onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} />
         <span className="muted">{graded.length.toLocaleString('en-CA')} settled</span>
       </div>
+      {mobile ? (
+        <div className="cards-list">
+          {graded.slice(0, shown).map((r) => (
+            <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames} mode="graded" />
+          ))}
+          {graded.length === 0 && <p className="muted">No settled bets match “{q}”.</p>}
+        </div>
+      ) : (
       <div className="scroll">
         <table>
           <thead>
@@ -82,6 +93,7 @@ export default function Graded({ rows, currency, accountNames }) {
           </tbody>
         </table>
       </div>
+      )}
       {graded.length > shown && (
         <button className="more" onClick={() => setShown((n) => n + PAGE)}>
           Show {Math.min(PAGE, graded.length - shown)} more

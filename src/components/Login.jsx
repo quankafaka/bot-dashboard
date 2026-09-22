@@ -19,7 +19,7 @@ export default function Login() {
   return (
     <div className="login">
       <form onSubmit={submit}>
-        <h1>Bot ledger</h1>
+        <h1>Steam chasing dashboard</h1>
         <p className="muted">Sign in with the account you were given in Supabase.</p>
         <label>
           Email

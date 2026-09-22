@@ -78,7 +78,10 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
                 </div>
               </td>
               <AlertCell r={r} />
-              <td className="num">{fmt(r.price_filled)}</td>
+              <td className="num">
+                {fmt(r.price_filled)}
+                {r.closing_price != null && <div className="sub">closed {fmt(r.closing_price)}</div>}
+              </td>
               <td className="num">{money(r.stake, currency)}</td>
               <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
               {!showId && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}

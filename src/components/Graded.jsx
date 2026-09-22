@@ -65,7 +65,10 @@ export default function Graded({ rows, currency, accountNames }) {
                   </div>
                 </td>
                 <AlertCell r={r} />
-                <td className="num">{fmt(r.price_filled)}</td>
+                <td className="num">
+                  {fmt(r.price_filled)}
+                  {r.closing_price != null && <div className="sub">closed {fmt(r.closing_price)}</div>}
+                </td>
                 <td className="num">{money(r.stake, currency)}</td>
                 <td className={`num ${tone(r.clv_pct)}`}>{pct(r.clv_pct)}</td>
                 <td><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>

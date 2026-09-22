@@ -12,10 +12,11 @@ const BASE_COLUMNS = [
   'ev_pct_bot', 'ev_pct_log', 'clv_pct', 'expected_profit', 'current_ev_pct',
   'result', 'profit', 'home_score', 'away_score',
 ]
-// Added by migration 006. Until it has run they do not exist, and asking for
-// them would fail the whole load -- so a missing-column error falls back to
-// the base set and the alert column just shows dashes.
+// Added by migrations 006 and 007. Until one has run its columns do not exist,
+// and asking for them would fail the whole load -- so a missing-column error
+// steps down to the next smaller set, and the alert column shows what it can.
 const ALERT_COLUMNS = ['pin_price_before', 'pin_price_after', 'pin_drop_pct', 'closing_price']
+const ALERT_SELECTION = ['alert_selection']
 
 const NUMERIC = [...ALERT_COLUMNS,
   'line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
@@ -38,13 +39,20 @@ async function readAll(columns) {
 }
 
 export async function fetchWagers() {
+  const attempts = [
+    [...BASE_COLUMNS, ...ALERT_COLUMNS, ...ALERT_SELECTION],
+    [...BASE_COLUMNS, ...ALERT_COLUMNS],
+    BASE_COLUMNS,
+  ]
   let rows
-  try {
-    rows = await readAll([...BASE_COLUMNS, ...ALERT_COLUMNS])
-  } catch (e) {
-    const missingColumn = e?.code === '42703' || /does not exist/i.test(e?.message ?? '')
-    if (!missingColumn) throw e                // 006 not run yet is the only excuse
-    rows = await readAll(BASE_COLUMNS)
+  for (const columns of attempts) {
+    try {
+      rows = await readAll(columns)
+      break
+    } catch (e) {
+      const missingColumn = e?.code === '42703' || /does not exist/i.test(e?.message ?? '')
+      if (!missingColumn || columns === BASE_COLUMNS) throw e   // only a missing migration is excused
+    }
   }
   // Postgres numerics arrive as strings; convert once here.
   for (const r of rows) {

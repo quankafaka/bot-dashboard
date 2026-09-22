@@ -26,7 +26,7 @@ export default function App() {
   if (session === undefined) return null
   if (!session) return <Login />
   return (
-    <OddsProvider>
+    <OddsProvider userId={session.user.id}>
       <Dashboard email={session.user.email} />
     </OddsProvider>
   )

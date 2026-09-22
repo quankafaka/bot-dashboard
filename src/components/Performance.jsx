@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { DIMENSIONS, applyFilters, summarize, cumulative, breakdown } from '../lib/metrics'
+import { DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown } from '../lib/metrics'
+import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
 import Filters from './Filters'
@@ -7,6 +8,12 @@ import { Card } from './Daily'
 
 export default function Performance({ rows, filters, setFilters, currency, accountNames }) {
   const [dim, setDim] = useState('sport')
+  const { format: oddsFormat } = useOddsFormat()
+  const rowLabel = (key) => {
+    if (dim === 'account') return accountNames[key] ?? key
+    if (dim === 'odds' && oddsFormat === 'american') return ODDS_BAND_AMERICAN[key] ?? key
+    return key
+  }
   const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const s = useMemo(() => summarize(filtered), [filtered])
   const series = useMemo(() => cumulative(filtered), [filtered])
@@ -66,7 +73,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
             <tbody>
               {table.map((g) => (
                 <tr key={g.key}>
-                  <th scope="row">{dim === 'account' ? (accountNames[g.key] ?? g.key) : g.key}</th>
+                  <th scope="row">{rowLabel(g.key)}</th>
                   <td className="num">{g.bets}</td>
                   <td className="num">{money(g.turnover, currency)}</td>
                   <td className={`num ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</td>

@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
-import { money, pct, odds, when, tone } from '../lib/format'
+import { money, pct, when, tone } from '../lib/format'
+import { useOdds } from '../lib/odds'
+import AlertCell from './AlertCell'
 import { marketLabel } from '../lib/metrics'
 
 // Two lists. PENDING bets are waiting on a result. UNLOGGED bets are not:
@@ -42,6 +44,7 @@ export default function Pending({ rows, currency, accountNames }) {
 }
 
 function BetTable({ rows, currency, accountNames, showId = false }) {
+  const fmt = useOdds()
   return (
     <div className="scroll">
       <table>
@@ -50,6 +53,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
             <th scope="col">Starts</th>
             <th scope="col">Game</th>
             <th scope="col">Bet</th>
+            <th scope="col">Alert</th>
             <th scope="col" className="num">Odds</th>
             <th scope="col" className="num">Stake</th>
             <th scope="col" className="num">EV at log</th>
@@ -73,7 +77,8 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
                   {showId && <span className="tag">{r.ev_pct_log == null ? 'Not in pdropper' : 'pdropper never graded it'}</span>}
                 </div>
               </td>
-              <td className="num">{odds(r.price_filled)}</td>
+              <AlertCell r={r} />
+              <td className="num">{fmt(r.price_filled)}</td>
               <td className="num">{money(r.stake, currency)}</td>
               <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
               {!showId && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}

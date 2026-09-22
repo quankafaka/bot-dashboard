@@ -8,6 +8,7 @@ import Performance from './components/Performance'
 import Pending from './components/Pending'
 import Graded from './components/Graded'
 import Daily from './components/Daily'
+import { OddsProvider, useOddsFormat } from './lib/odds'
 
 const REFRESH_MS = 60_000
 
@@ -24,7 +25,23 @@ export default function App() {
   if (configError) return <p className="fatal">{configError}</p>
   if (session === undefined) return null
   if (!session) return <Login />
-  return <Dashboard email={session.user.email} />
+  return (
+    <OddsProvider>
+      <Dashboard email={session.user.email} />
+    </OddsProvider>
+  )
+}
+
+function OddsToggle() {
+  const { format, setFormat } = useOddsFormat()
+  return (
+    <div className="seg" role="group" aria-label="Odds format">
+      {[['decimal', 'Decimal'], ['american', 'American']].map(([id, label]) => (
+        <button key={id} className={format === id ? 'on' : ''} aria-pressed={format === id}
+          onClick={() => setFormat(id)}>{label}</button>
+      ))}
+    </div>
+  )
 }
 
 function Dashboard({ email }) {
@@ -66,7 +83,7 @@ function Dashboard({ email }) {
 
   const book = books?.find((b) => b.name === filters.book)
   const bookRows = useMemo(() => (rows ?? []).filter((r) => r.book === filters.book), [rows, filters.book])
-  const openCount = bookRows.filter((r) => r.status !== 'graded').length
+  const openCount = bookRows.filter((r) => r.status === 'pending').length
   const bal = useMemo(() => accountBalance(bookRows, book), [bookRows, book])
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
@@ -75,8 +92,8 @@ function Dashboard({ email }) {
     <div className="shell">
       <header className="top">
         <div className="brand">
-          <span className="logo" aria-hidden="true">BL</span>
-          <h1>Bot ledger</h1>
+          <span className="logo" aria-hidden="true">SC</span>
+          <h1>Steam chasing dashboard</h1>
         </div>
         <div className={`seg books ${books?.length === 1 ? 'single' : ''}`} role="tablist" aria-label="Book">
           {(books ?? []).map((b) => (
@@ -99,6 +116,7 @@ function Dashboard({ email }) {
           </div>
         )}
         <div className="who">
+          <OddsToggle />
           <span className="stamp">
             <span className={`dot ${error ? 'bad' : ''}`} aria-hidden="true" />
             {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}

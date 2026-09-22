@@ -22,7 +22,9 @@ const sum = (xs) => xs.reduce((a, b) => a + b, 0)
 
 export function summarize(rows) {
   const graded = rows.filter((r) => r.status === 'graded')
-  const open = rows.filter((r) => r.status !== 'graded')
+  // Open = still waiting on a result. 'unlogged' bets are NOT open: their game
+  // is over, they just never reached pdropper, so they are not money at risk.
+  const open = rows.filter((r) => r.status === 'pending')
   const withClv = graded.filter((r) => r.clv_pct != null)
   const withExp = graded.filter((r) => r.expected_profit != null)
   const turnover = sum(graded.map((r) => r.stake))
@@ -40,7 +42,7 @@ export function summarize(rows) {
     expYield: expYield(withExp),
     openCount: open.length,
     openStake: sum(open.map((r) => r.stake)),
-    unlogged: open.filter((r) => r.status === 'unlogged').length,
+    unlogged: rows.filter((r) => r.status === 'unlogged').length,
   }
 }
 
@@ -97,6 +99,15 @@ export function marketLabel(r) {
     total: 'Total',
   }[r.market_type] ?? r.market_type
   return r.variant && r.variant !== 'main' ? `${base} (${r.variant})` : base
+}
+
+// The same bands, named in American odds.
+export const ODDS_BAND_AMERICAN = {
+  'Under 1.60': 'Shorter than -167',
+  '1.60–1.99': '-167 to -101',
+  '2.00–2.49': '+100 to +149',
+  '2.50–3.49': '+150 to +249',
+  '3.50 and up': '+250 and up',
 }
 
 export function oddsBand(o) {

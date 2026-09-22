@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { money, pct, odds, when, tone } from '../lib/format'
+import { money, pct, when, tone } from '../lib/format'
+import { useOdds } from '../lib/odds'
+import AlertCell from './AlertCell'
 import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
 
 const PAGE = 100
@@ -9,6 +11,7 @@ const RESULT_LABEL = {
 
 export default function Graded({ rows, currency, accountNames }) {
   const [q, setQ] = useState('')
+  const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
 
   const graded = useMemo(() => {
@@ -34,6 +37,7 @@ export default function Graded({ rows, currency, accountNames }) {
               <th scope="col">Placed</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
+              <th scope="col">Alert</th>
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
               <th scope="col" className="num">CLV</th>
@@ -60,7 +64,8 @@ export default function Graded({ rows, currency, accountNames }) {
                     {r.is_freebet && <span className="tag">Free bet</span>}
                   </div>
                 </td>
-                <td className="num">{odds(r.price_filled)}</td>
+                <AlertCell r={r} />
+                <td className="num">{fmt(r.price_filled)}</td>
                 <td className="num">{money(r.stake, currency)}</td>
                 <td className={`num ${tone(r.clv_pct)}`}>{pct(r.clv_pct)}</td>
                 <td><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>
@@ -69,7 +74,7 @@ export default function Graded({ rows, currency, accountNames }) {
               </tr>
             ))}
             {graded.length === 0 && (
-              <tr><td colSpan={9} className="muted">No settled bets match “{q}”.</td></tr>
+              <tr><td colSpan={10} className="muted">No settled bets match “{q}”.</td></tr>
             )}
           </tbody>
         </table>

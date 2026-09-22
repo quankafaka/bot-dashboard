@@ -3,7 +3,7 @@ import { supabase } from '../supabase'
 // Supabase's API returns at most 1,000 rows per request, so read in pages.
 const PAGE = 1000
 
-const WAGER_COLUMNS = [
+const BASE_COLUMNS = [
   'wager_id', 'source', 'status', 'placed_at', 'placed_date_local',
   'sport', 'league', 'country', 'home_team', 'away_team', 'start_time',
   'market_type', 'period', 'variant', 'book', 'currency', 'account',
@@ -11,23 +11,40 @@ const WAGER_COLUMNS = [
   'price_filled', 'stake', 'to_return',
   'ev_pct_bot', 'ev_pct_log', 'clv_pct', 'expected_profit', 'current_ev_pct',
   'result', 'profit', 'home_score', 'away_score',
-].join(',')
+]
+// Added by migration 006. Until it has run they do not exist, and asking for
+// them would fail the whole load -- so a missing-column error falls back to
+// the base set and the alert column just shows dashes.
+const ALERT_COLUMNS = ['pin_price_before', 'pin_price_after', 'pin_drop_pct', 'closing_price']
 
-const NUMERIC = ['line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
+const NUMERIC = [...ALERT_COLUMNS,
+  'line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
   'clv_pct', 'expected_profit', 'current_ev_pct', 'profit']
 
-export async function fetchWagers() {
+async function readAll(columns) {
   const rows = []
   for (let from = 0; ; from += PAGE) {
     const { data, error } = await supabase
       .from('v_wager')
-      .select(WAGER_COLUMNS)
+      .select(columns.join(','))
       .order('placed_at', { ascending: true })
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) throw error
     rows.push(...data)
     if (data.length < PAGE) break
+  }
+  return rows
+}
+
+export async function fetchWagers() {
+  let rows
+  try {
+    rows = await readAll([...BASE_COLUMNS, ...ALERT_COLUMNS])
+  } catch (e) {
+    const missingColumn = e?.code === '42703' || /does not exist/i.test(e?.message ?? '')
+    if (!missingColumn) throw e                // 006 not run yet is the only excuse
+    rows = await readAll(BASE_COLUMNS)
   }
   // Postgres numerics arrive as strings; convert once here.
   for (const r of rows) {

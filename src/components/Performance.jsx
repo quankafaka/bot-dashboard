@@ -21,6 +21,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   const series = useMemo(() => cumulative(filtered), [filtered])
   const table = useMemo(() => breakdown(filtered, dim), [filtered, dim])
   const multiAccount = new Set(rows.map((r) => r.account)).size > 1
+  // 'System' only means something once more than one system has bets here.
+  const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
   const luck = s.profit - s.expected
 
   return (
@@ -53,7 +55,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <header className="panel-head">
           <h2>Split by</h2>
           <div className="seg" role="group" aria-label="Split by">
-            {DIMENSIONS.filter((d) => d.id !== 'account' || multiAccount).map((d) => (
+            {DIMENSIONS.filter((d) => (d.id !== 'account' || multiAccount)
+              && (d.id !== 'strategy' || multiSystem)).map((d) => (
               <button key={d.id} className={dim === d.id ? 'on' : ''} aria-pressed={dim === d.id}
                 onClick={() => setDim(d.id)}>{d.label}</button>
             ))}

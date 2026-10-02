@@ -63,6 +63,30 @@ export async function fetchWagers() {
   return rows
 }
 
+// Which system took each bet -- the steam chaser or the NFL / CFB models --
+// from v_wager_strategy (migration 008), joined to v_wager rows on wager_id.
+// Returns null, not an error, until that migration has run: the rest of the
+// dashboard does not depend on it, so it must not fail the whole load.
+export async function fetchStrategies() {
+  const labels = new Map()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_strategy')
+      .select('wager_id,strategy')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) labels.set(r.wager_id, r.strategy)
+    if (data.length < PAGE) break
+  }
+  return labels
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error

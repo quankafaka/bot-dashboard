@@ -282,7 +282,7 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   /* tabs: a bar at the bottom, in reach of a thumb */
   .tabs {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; margin: 0;
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+    display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0;
     background: rgba(12, 12, 13, 0.94); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
     border-top: 1px solid var(--border); border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom);
@@ -304,4 +304,10 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   .card-value { font-size: 18px; }
   .chart { height: 240px; padding: 14px 8px 4px 0; }
   .week-nav { width: 100%; justify-content: space-between; }
+}
+
+/* NFL / CFB model page: the CLV cards sit inside a panel. */
+.pad-cards { padding: 0 18px 18px; margin-bottom: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 700px) {
+  .pad-cards { padding: 0 16px 16px; grid-template-columns: 1fr; }
 }

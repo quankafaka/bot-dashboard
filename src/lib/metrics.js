@@ -68,6 +68,19 @@ export const SOURCE_LABEL = {
   bia_order: 'BetInAsia only',
 }
 
+// The derivative-model systems, by the label the bot records. Everything
+// else is the steam chaser; a NULL label is a bet nothing could attribute
+// (a BetInAsia-only order).
+export const MODEL_STRATEGIES = ['nfl_model', 'cfb_model']
+
+export const STRATEGY_LABEL = {
+  steam: 'Steam alerts',
+  nfl_model: 'NFL model',
+  cfb_model: 'CFB model',
+}
+
+export const isModel = (r) => MODEL_STRATEGIES.includes(r.strategy)
+
 export const DIMENSIONS = [
   { id: 'sport', label: 'Sport', key: (r) => r.sport },
   { id: 'league', label: 'League', key: (r) => r.league },
@@ -75,6 +88,7 @@ export const DIMENSIONS = [
   { id: 'market', label: 'Market', key: (r) => marketLabel(r) },
   { id: 'account', label: 'Account', key: (r) => r.account },
   { id: 'source', label: 'Recorded by', key: (r) => SOURCE_LABEL[r.source] ?? r.source },
+  { id: 'strategy', label: 'System', key: (r) => STRATEGY_LABEL[r.strategy] ?? 'Unattributed' },
   { id: 'odds', label: 'Odds band', key: (r) => oddsBand(r.price_filled) },
 ]
 

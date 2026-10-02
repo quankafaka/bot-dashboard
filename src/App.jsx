@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -8,9 +8,14 @@ import Performance from './components/Performance'
 import Pending from './components/Pending'
 import Graded from './components/Graded'
 import Daily from './components/Daily'
+import Models from './components/Models'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 
 const REFRESH_MS = 60_000
+
+// The NFL / CFB derivative models only bet on BetInAsian, so their page only
+// exists there.
+const MODEL_BOOK = 'BetInAsian'
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still checking
@@ -51,6 +56,7 @@ function Dashboard({ email }) {
   const [error, setError] = useState(null)
   const [loadedAt, setLoadedAt] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [labelsReady, setLabelsReady] = useState(false)
   const [tab, setTab] = useState('performance')
   const [filters, setFilters] = useState({
     book: null, period: '30d', accounts: [], includeManual: true,
@@ -59,7 +65,14 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b] = await Promise.all([fetchWagers(), fetchAccounts(), fetchBooks()])
+      const [w, a, b, labels] = await Promise.all([
+        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies()])
+      // Which system took each bet (migration 008). Missing label: 'steam'
+      // for the bot's own and hand-logged rows, unattributed for BIA-only.
+      for (const r of w) {
+        r.strategy = labels?.get(r.wager_id) ?? (labels && r.source !== 'bia_order' ? 'steam' : null)
+      }
+      setLabelsReady(labels != null)
       setRows(w)
       setAccounts(a)
       setBooks(b)
@@ -87,6 +100,8 @@ function Dashboard({ email }) {
   const bal = useMemo(() => accountBalance(bookRows, book), [bookRows, book])
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
+  const showModels = filters.book === MODEL_BOOK
+  const view = tab === 'models' && !showModels ? 'performance' : tab
 
   return (
     <div className="shell">
@@ -145,8 +160,9 @@ function Dashboard({ email }) {
           ['daily', 'Daily'],
           ['pending', 'Pending'],
           ['graded', 'Graded'],
+          ...(showModels ? [['models', 'NFL / CFB']] : []),
         ].map(([id, label]) => (
-          <button key={id} role="tab" aria-selected={tab === id} className={tab === id ? 'on' : ''}
+          <button key={id} role="tab" aria-selected={view === id} className={view === id ? 'on' : ''}
             onClick={() => setTab(id)}>
             {label}{id === 'pending' && <span className="count">{openCount}</span>}
           </button>
@@ -167,16 +183,20 @@ function Dashboard({ email }) {
 
       {rows && book && (
         <main>
-          {tab === 'performance' && (
+          {view === 'performance' && (
             <Performance rows={bookRows} filters={filters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
-          {tab === 'daily' && (
+          {view === 'daily' && (
             <Daily rows={bookRows} filters={filters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
-          {tab === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
-          {tab === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'models' && (
+            <Models rows={bookRows} filters={filters} setFilters={setFilters}
+              currency={book.currency} accountNames={accounts} labelsReady={labelsReady} />
+          )}
         </main>
       )}
     </div>

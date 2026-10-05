@@ -2,6 +2,7 @@ import { money, pct, when, tone } from '../lib/format'
 import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
 import { alertLabel } from './AlertCell'
+import { limitMoney } from '../lib/format'
 
 const RESULT_LABEL = {
   WIN: 'Won', LOSS: 'Lost', HALF_WIN: 'Half won', HALF_LOSS: 'Half lost', PUSH: 'Push', VOID: 'Void',
@@ -42,6 +43,7 @@ export default function BetCard({ r, currency, accountNames, mode }) {
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     mode !== 'graded' && r.ev_pct_log != null ? `EV ${pct(r.ev_pct_log)}` : null,
     mode === 'pending' && r.current_ev_pct != null ? `now ${pct(r.current_ev_pct)}` : null,
+    !alert && r.pin_limit != null ? `limit ${limitMoney(r.pin_limit)}` : null,
   ].filter(Boolean)
 
   return (
@@ -62,6 +64,7 @@ export default function BetCard({ r, currency, accountNames, mode }) {
           {label && <>{label} </>}
           <span className="alert-move">{fmt(r.pin_price_before)} → {fmt(r.pin_price_after)}</span>
           {r.pin_drop_pct != null && <span className="bc-dim"> ({r.pin_drop_pct.toFixed(1)}%)</span>}
+          {r.pin_limit != null && <span className="bc-dim">, limit {limitMoney(r.pin_limit)}</span>}
         </div>
       )}
       <div className="bc-meta">
@@ -69,6 +72,7 @@ export default function BetCard({ r, currency, accountNames, mode }) {
         {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}, {account}
         {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
         {r.is_freebet && <span className="tag">Free bet</span>}
+        {r.limit_tier === 'reduced' && <span className="tag">Reduced stake</span>}
       </div>
       {mode === 'ungraded' && (
         <div className="bc-meta">

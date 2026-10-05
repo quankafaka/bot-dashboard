@@ -87,6 +87,36 @@ export async function fetchStrategies() {
   return labels
 }
 
+// Pinnacle's limit on each bet's market, from v_wager_limit (migration 009):
+// read by the bot for soccer since the limit rule went in, pdropper's logged
+// limit for everything else. Returns null, not an error, until that migration
+// has run -- like fetchStrategies, nothing else on the page depends on it.
+export async function fetchLimits() {
+  const limits = new Map()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_limit')
+      .select('wager_id,pinnacle_limit,limit_source,limit_tier')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      limits.set(r.wager_id, {
+        limit: r.pinnacle_limit == null ? null : Number(r.pinnacle_limit),
+        source: r.limit_source,
+        tier: r.limit_tier,
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return limits
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error

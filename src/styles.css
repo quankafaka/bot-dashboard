@@ -311,3 +311,7 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 700px) {
   .pad-cards { padding: 0 16px 16px; grid-template-columns: 1fr; }
 }
+
+/* The note under 'Split by' when a limit view is on. */
+.split-note { margin: 0; padding: 0 20px 12px; max-width: 100ch; font-size: 12px; }
+@media (max-width: 700px) { .split-note { padding: 0 16px 10px; } }

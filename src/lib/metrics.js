@@ -90,6 +90,11 @@ export const DIMENSIONS = [
   { id: 'source', label: 'Recorded by', key: (r) => SOURCE_LABEL[r.source] ?? r.source },
   { id: 'strategy', label: 'System', key: (r) => STRATEGY_LABEL[r.strategy] ?? 'Unattributed' },
   { id: 'odds', label: 'Odds band', key: (r) => oddsBand(r.price_filled) },
+  // The soccer limit rule. Shown once v_wager_limit has data (needsLimits).
+  { id: 'limit', label: 'Pinnacle limit', key: (r) => limitBand(r.pin_limit),
+    order: () => LIMIT_BAND_ORDER, needsLimits: true },
+  { id: 'limitRule', label: 'Limit rule', key: (r) => limitRuleLabel(r),
+    order: () => LIMIT_RULE_ORDER, needsLimits: true },
 ]
 
 export function breakdown(rows, dimId) {
@@ -100,9 +105,77 @@ export function breakdown(rows, dimId) {
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k).push(r)
   }
-  return [...groups.entries()]
-    .map(([key, rs]) => ({ key, ...summarize(rs) }))
-    .sort((a, b) => b.turnover - a.turnover)
+  const out = [...groups.entries()].map(([key, rs]) => ({ key, ...summarize(rs) }))
+  if (dim.order) {
+    // Bands read in their own order (thin to deep), not by handle.
+    const order = dim.order()
+    const at = (k) => (order.includes(k) ? order.indexOf(k) : order.length)
+    return out.sort((a, b) => at(a.key) - at(b.key))
+  }
+  return out.sort((a, b) => b.turnover - a.turnover)
+}
+
+// ---- the soccer Pinnacle-limit rule ---------------------------------------
+// A mirror of the bot's r_limit_rules.SOCCER_BANDS. If one changes, change
+// the other: the bot decides with that table, this one only labels bets.
+//   skipBelow: limits under it are skipped
+//   fullFrom:  limits at or above it get the full stake; between is reduced
+export const LIMIT_RULE_BANDS = {
+  ah: { label: 'Asian handicap', skipBelow: 150, fullFrom: 400 },
+  total: { label: 'Goal totals', skipBelow: 200, fullFrom: 400 },
+  ml: { label: '1X2', skipBelow: 300, fullFrom: 300 },
+  derivative: { label: 'Corners / bookings', skipBelow: 0, fullFrom: Infinity },
+}
+
+export function limitRuleMarket(r) {
+  if (r.variant && r.variant !== 'main') return 'derivative'
+  if (r.market_type === 'spread') return 'ah'
+  if (r.market_type === 'total') return 'total'
+  if (String(r.market_type ?? '').startsWith('moneyline')) return 'ml'
+  return null
+}
+
+// Which band the rule puts a soccer bet's limit in: 'full', 'reduced' or
+// 'skip'. null when the rule says nothing (not soccer, no limit, no market).
+export function limitRuleBand(r) {
+  if (r.sport !== 'Soccer' || r.pin_limit == null) return null
+  const band = LIMIT_RULE_BANDS[limitRuleMarket(r)]
+  if (!band) return null
+  if (r.pin_limit < band.skipBelow) return 'skip'
+  if (r.pin_limit >= band.fullFrom) return 'full'
+  return 'reduced'
+}
+
+export const LIMIT_RULE_ORDER = [
+  'Full stake', 'Reduced stake',
+  'Before the rule: full band', 'Before the rule: reduced band', 'Before the rule: skip band',
+  'Soccer, limit unknown', 'No rule (not soccer)',
+]
+
+// What the rule did with a bet -- or, for one placed before it existed, which
+// band it falls in now. The second group is what makes the rule checkable:
+// 'Before the rule: skip band' is how the bets the rule now refuses did.
+export function limitRuleLabel(r) {
+  if (r.sport !== 'Soccer') return 'No rule (not soccer)'
+  if (r.limit_tier === 'full') return 'Full stake'
+  if (r.limit_tier === 'reduced') return 'Reduced stake'
+  const band = limitRuleBand(r)
+  return band ? `Before the rule: ${band} band` : 'Soccer, limit unknown'
+}
+
+export const LIMIT_BAND_ORDER = [
+  'Under $150', '$150–199', '$200–299', '$300–399', '$400–999', '$1,000 and up', '—',
+]
+
+// Cut where the rule cuts, so a row here is never half one tier, half another.
+export function limitBand(x) {
+  if (x == null) return '—'
+  if (x < 150) return 'Under $150'
+  if (x < 200) return '$150–199'
+  if (x < 300) return '$200–299'
+  if (x < 400) return '$300–399'
+  if (x < 1000) return '$400–999'
+  return '$1,000 and up'
 }
 
 export function marketLabel(r) {

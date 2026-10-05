@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -65,12 +65,20 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies()])
+      const [w, a, b, labels, limits] = await Promise.all([
+        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
         r.strategy = labels?.get(r.wager_id) ?? (labels && r.source !== 'bia_order' ? 'steam' : null)
+      }
+      // Pinnacle's limit on each bet's market (migration 009). Left undefined
+      // until that migration has run, which hides every limit view.
+      for (const r of w) {
+        const l = limits?.get(r.wager_id)
+        r.pin_limit = l?.limit ?? null
+        r.limit_source = l?.source ?? null
+        r.limit_tier = l?.tier ?? null
       }
       setLabelsReady(labels != null)
       setRows(w)

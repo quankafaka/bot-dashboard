@@ -19,10 +19,14 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const s = useMemo(() => summarize(filtered), [filtered])
   const series = useMemo(() => cumulative(filtered), [filtered])
-  const table = useMemo(() => breakdown(filtered, dim), [filtered, dim])
+  const table = useMemo(() => breakdown(filtered, shownDim), [filtered, shownDim])
   const multiAccount = new Set(rows.map((r) => r.account)).size > 1
   // 'System' only means something once more than one system has bets here.
   const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
+  // The limit splits only once v_wager_limit (migration 009) has data.
+  const hasLimits = rows.some((r) => r.pin_limit != null)
+  const limitView = dim === 'limit' || dim === 'limitRule'
+  const shownDim = (!hasLimits && limitView) ? 'sport' : dim
   const luck = s.profit - s.expected
 
   return (
@@ -56,12 +60,20 @@ export default function Performance({ rows, filters, setFilters, currency, accou
           <h2>Split by</h2>
           <div className="seg" role="group" aria-label="Split by">
             {DIMENSIONS.filter((d) => (d.id !== 'account' || multiAccount)
-              && (d.id !== 'strategy' || multiSystem)).map((d) => (
-              <button key={d.id} className={dim === d.id ? 'on' : ''} aria-pressed={dim === d.id}
+              && (d.id !== 'strategy' || multiSystem)
+              && (!d.needsLimits || hasLimits)).map((d) => (
+              <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
                 onClick={() => setDim(d.id)}>{d.label}</button>
             ))}
           </div>
         </header>
+        {hasLimits && limitView && (
+          <p className="muted split-note">
+            {shownDim === 'limitRule'
+              ? 'Soccer only. Full and reduced stake are bets the rule sized; the "before the rule" rows are older bets, grouped by the band their limit falls in today. The skip band is what the rule now refuses.'
+              : "Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest."}
+          </p>
+        )}
         {mobile ? (
           <div className="day-list">
             {table.map((g) => (
@@ -73,6 +85,9 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                 <div className="day-fig">
                   <div className={`bc-money ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</div>
                   <div className="sub">{pct(g.roi)} actual, {pct(g.expYield)} exp.</div>
+                  {g.avgClv != null && (
+                    <div className="sub">CLV {pct(g.avgClv)}, {g.beatClose.toFixed(0)}% beat close</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -83,13 +98,15 @@ export default function Performance({ rows, filters, setFilters, currency, accou
           <table>
             <thead>
               <tr>
-                <th scope="col">{DIMENSIONS.find((d) => d.id === dim).label}</th>
+                <th scope="col">{DIMENSIONS.find((d) => d.id === shownDim).label}</th>
                 <th scope="col" className="num">Bets</th>
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
                 <th scope="col" className="num">Actual yield</th>
                 <th scope="col" className="num">Expected yield</th>
                 <th scope="col" className="num">Expected profit</th>
+                <th scope="col" className="num">Avg CLV</th>
+                <th scope="col" className="num">Beat close</th>
               </tr>
             </thead>
             <tbody>
@@ -102,10 +119,12 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                   <td className={`num ${tone(g.roi)}`}>{pct(g.roi)}</td>
                   <td className={`num ${tone(g.expYield)}`}>{pct(g.expYield, { digits: 2 })}</td>
                   <td className="num">{money(g.expected, currency, { sign: true })}</td>
+                  <td className={`num ${tone(g.avgClv)}`}>{pct(g.avgClv, { digits: 2 })}</td>
+                  <td className="num">{g.beatClose == null ? '—' : `${g.beatClose.toFixed(0)}%`}</td>
                 </tr>
               ))}
               {table.length === 0 && (
-                <tr><td colSpan={7} className="muted">No settled bets match these filters.</td></tr>
+                <tr><td colSpan={9} className="muted">No settled bets match these filters.</td></tr>
               )}
             </tbody>
           </table>

@@ -19,6 +19,11 @@ export function pct(x, { sign = true, digits = 1 } = {}) {
   return `${sign && x > 0 ? '+' : ''}${s}%`
 }
 
+// A Pinnacle limit: whole dollars, no currency code (Pinnacle quotes them in USD).
+export function limitMoney(x) {
+  return x == null || Number.isNaN(x) ? '—' : `$${Math.round(x).toLocaleString('en-CA')}`
+}
+
 export function odds(x) {
   return x == null ? '—' : x.toFixed(3).replace(/0$/, '')
 }

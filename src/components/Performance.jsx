@@ -16,6 +16,10 @@ export default function Performance({ rows, filters, setFilters, currency, accou
     if (dim === 'odds' && oddsFormat === 'american') return ODDS_BAND_AMERICAN[key] ?? key
     return key
   }
+  // Before `table`, which uses shownDim. The limit splits only once v_wager_limit (migration 009) has data.
+  const hasLimits = rows.some((r) => r.pin_limit != null)
+  const limitView = dim === 'limit' || dim === 'limitRule'
+  const shownDim = (!hasLimits && limitView) ? 'sport' : dim
   const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const s = useMemo(() => summarize(filtered), [filtered])
   const series = useMemo(() => cumulative(filtered), [filtered])
@@ -23,10 +27,6 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   const multiAccount = new Set(rows.map((r) => r.account)).size > 1
   // 'System' only means something once more than one system has bets here.
   const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
-  // The limit splits only once v_wager_limit (migration 009) has data.
-  const hasLimits = rows.some((r) => r.pin_limit != null)
-  const limitView = dim === 'limit' || dim === 'limitRule'
-  const shownDim = (!hasLimits && limitView) ? 'sport' : dim
   const luck = s.profit - s.expected
 
   return (

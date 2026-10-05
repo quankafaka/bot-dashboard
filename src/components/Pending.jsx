@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { money, pct, tone, betTime } from '../lib/format'
+import { money, pct, tone, betTime, multiAccount } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
@@ -16,6 +16,8 @@ export default function Pending({ rows, currency, accountNames }) {
   const open = useMemo(() => rows.filter((r) => r.status === 'pending').sort(byPlaced), [rows])
   const unlogged = useMemo(() => rows.filter((r) => r.status === 'unlogged').sort(byPlaced), [rows])
   const stake = open.reduce((a, r) => a + r.stake, 0)
+  // Decided on the whole book, so both lists below agree.
+  const showAccount = multiAccount(rows)
 
   return (
     <>
@@ -25,7 +27,7 @@ export default function Pending({ rows, currency, accountNames }) {
         ) : (
           <>
             <p className="lede">{open.length} open, {money(stake, currency)} at risk.</p>
-            <BetTable rows={open} currency={currency} accountNames={accountNames} />
+            <BetTable rows={open} currency={currency} accountNames={accountNames} showAccount={showAccount} />
           </>
         )}
       </section>
@@ -38,14 +40,14 @@ export default function Pending({ rows, currency, accountNames }) {
             with no result coming. Run <code>m_dashboard_sync --ungraded</code> for a ready-to-fill list,
             put the results in dashboard_overrides.csv, and they move to Graded at the next sync.
           </p>
-          <BetTable rows={unlogged} currency={currency} accountNames={accountNames} showId />
+          <BetTable rows={unlogged} currency={currency} accountNames={accountNames} showAccount={showAccount} showId />
         </section>
       )}
     </>
   )
 }
 
-function BetTable({ rows, currency, accountNames, showId = false }) {
+function BetTable({ rows, currency, accountNames, showAccount, showId = false }) {
   const fmt = useOdds()
   const mobile = useIsMobile()
   const showLimit = hasLimits(rows)
@@ -53,7 +55,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
     return (
       <div className="cards-list">
         {rows.map((r) => (
-          <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
+          <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames} showAccount={showAccount}
             mode={showId ? 'ungraded' : 'pending'} />
         ))}
       </div>
@@ -73,7 +75,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
             <th scope="col" className="num">Stake</th>
             <th scope="col" className="num">EV at log</th>
             {!showId && <th scope="col" className="num">EV now</th>}
-            <th scope="col">Account</th>
+            {showAccount && <th scope="col">Account</th>}
             {showId && <th scope="col">ID</th>}
           </tr>
         </thead>
@@ -101,7 +103,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
               <td className="num">{money(r.stake, currency)}</td>
               <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
               {!showId && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}
-              <td>{accountNames[r.account] ?? r.account}</td>
+              {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
               {showId && <td className="nowrap sub">{r.wager_id}</td>}
             </tr>
           ))}

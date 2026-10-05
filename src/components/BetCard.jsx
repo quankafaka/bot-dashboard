@@ -14,9 +14,8 @@ const RESULT_LABEL = {
 //   mode 'pending'  -> stake at risk, EV at log and now
 //   mode 'graded'   -> result and profit, CLV
 //   mode 'ungraded' -> why no result is coming, and the ID for the overrides file
-export default function BetCard({ r, currency, accountNames, mode }) {
+export default function BetCard({ r, currency, accountNames, mode, showAccount = false }) {
   const fmt = useOdds()
-  const account = accountNames[r.account] ?? r.account
   const alert = r.pin_price_before != null && r.pin_price_after != null
   const label = alertLabel(r.alert_selection)
 
@@ -68,7 +67,8 @@ export default function BetCard({ r, currency, accountNames, mode }) {
       )}
       <div className="bc-meta">
         Placed {betTime(r)}, {r.league}
-        {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}, {account}
+        {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}
+        {showAccount && `, ${accountNames[r.account] ?? r.account}`}
         {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
         {r.is_freebet && <span className="tag">Free bet</span>}
         {r.limit_tier === 'reduced' && <span className="tag">Reduced stake</span>}

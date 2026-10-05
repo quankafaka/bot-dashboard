@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { money, pct, tone, betTime } from '../lib/format'
+import { money, pct, tone, betTime, multiAccount } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
@@ -18,6 +18,7 @@ export default function Graded({ rows, currency, accountNames }) {
   const mobile = useIsMobile()
 
   const showLimit = hasLimits(rows)
+  const showAccount = multiAccount(rows)
   const graded = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return rows
@@ -37,7 +38,8 @@ export default function Graded({ rows, currency, accountNames }) {
       {mobile ? (
         <div className="cards-list">
           {graded.slice(0, shown).map((r) => (
-            <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames} mode="graded" />
+            <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
+              showAccount={showAccount} mode="graded" />
           ))}
           {graded.length === 0 && <p className="muted">No settled bets match “{q}”.</p>}
         </div>
@@ -56,7 +58,7 @@ export default function Graded({ rows, currency, accountNames }) {
               <th scope="col" className="num">CLV</th>
               <th scope="col">Result</th>
               <th scope="col" className="num">Profit</th>
-              <th scope="col">Account</th>
+              {showAccount && <th scope="col">Account</th>}
             </tr>
           </thead>
           <tbody>
@@ -87,11 +89,11 @@ export default function Graded({ rows, currency, accountNames }) {
                 <td className={`num ${tone(r.clv_pct)}`}>{pct(r.clv_pct)}</td>
                 <td><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>
                 <td className={`num ${tone(r.profit)}`}>{money(r.profit, currency, { sign: true })}</td>
-                <td>{accountNames[r.account] ?? r.account}</td>
+                {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
               </tr>
             ))}
             {graded.length === 0 && (
-              <tr><td colSpan={showLimit ? 11 : 10} className="muted">No settled bets match “{q}”.</td></tr>
+              <tr><td colSpan={9 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">No settled bets match “{q}”.</td></tr>
             )}
           </tbody>
         </table>

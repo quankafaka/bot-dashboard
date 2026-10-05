@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import { money, pct, when, tone } from '../lib/format'
+import { money, pct, tone, betTime, zoneName } from '../lib/format'
 import { useOdds } from '../lib/odds'
-import AlertCell from './AlertCell'
+import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
 import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
@@ -17,6 +17,8 @@ export default function Graded({ rows, currency, accountNames }) {
   const [shown, setShown] = useState(PAGE)
   const mobile = useIsMobile()
 
+  const zone = zoneName(rows[0]?.book)
+  const showLimit = hasLimits(rows)
   const graded = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return rows
@@ -45,10 +47,11 @@ export default function Graded({ rows, currency, accountNames }) {
         <table>
           <thead>
             <tr>
-              <th scope="col">Placed</th>
+              <th scope="col">Placed{zone && <div className="sub">{zone}</div>}</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
               <th scope="col">Alert</th>
+              {showLimit && <th scope="col" className="num">Limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
               <th scope="col" className="num">CLV</th>
@@ -60,7 +63,7 @@ export default function Graded({ rows, currency, accountNames }) {
           <tbody>
             {graded.slice(0, shown).map((r) => (
               <tr key={r.wager_id}>
-                <td className="nowrap">{when(r.placed_at)}</td>
+                <td className="nowrap">{betTime(r)}</td>
                 <td>
                   <div>{r.home_team} v {r.away_team}</div>
                   <div className="sub">
@@ -76,6 +79,7 @@ export default function Graded({ rows, currency, accountNames }) {
                   </div>
                 </td>
                 <AlertCell r={r} />
+                {showLimit && <LimitCell r={r} />}
                 <td className="num">
                   {fmt(r.price_filled)}
                   {r.closing_price != null && <div className="sub">closed {fmt(r.closing_price)}</div>}
@@ -88,7 +92,7 @@ export default function Graded({ rows, currency, accountNames }) {
               </tr>
             ))}
             {graded.length === 0 && (
-              <tr><td colSpan={10} className="muted">No settled bets match “{q}”.</td></tr>
+              <tr><td colSpan={showLimit ? 11 : 10} className="muted">No settled bets match “{q}”.</td></tr>
             )}
           </tbody>
         </table>

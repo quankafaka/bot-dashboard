@@ -15,24 +15,25 @@ export function alertLabel(sel) {
 // bet -- the Mise bot takes alternate lines (alert Over 3.75, bet Over 3.5) --
 // which is why it is named. Only the bot records alerts, so hand-logged and
 // BetInAsia-only bets show a dash.
-// Pinnacle's limit on the market, and -- for soccer bets sized by the limit
-// rule at a reduced stake -- a tag saying so.
-export function LimitNote({ r, className = 'sub' }) {
-  if (r.pin_limit == null) return null
+// The Limit column: Pinnacle's limit on the market when the bet was taken,
+// and -- for a soccer bet the limit rule sized down -- a tag saying so.
+// Tables only show the column once some bet has a limit (migration 009).
+export const hasLimits = (rows) => rows.some((r) => r.pin_limit != null)
+
+export function LimitCell({ r }) {
+  if (r.pin_limit == null) return <td className="num muted">—</td>
   return (
-    <div className={className}>
-      Limit {limitMoney(r.pin_limit)}
-      {r.limit_tier === 'reduced' && <span className="tag">Reduced stake</span>}
-    </div>
+    <td className="num nowrap">
+      {limitMoney(r.pin_limit)}
+      {r.limit_tier === 'reduced' && <div className="sub">Reduced stake</div>}
+    </td>
   )
 }
 
 export default function AlertCell({ r }) {
   const fmt = useOdds()
   if (r.pin_price_before == null || r.pin_price_after == null) {
-    return r.pin_limit == null
-      ? <td className="muted">—</td>
-      : <td className="nowrap"><LimitNote r={r} /></td>
+    return <td className="muted">—</td>
   }
   const label = alertLabel(r.alert_selection)
   const drop = r.pin_drop_pct != null ? `${r.pin_drop_pct.toFixed(1)}%` : null
@@ -44,7 +45,6 @@ export default function AlertCell({ r }) {
       <div className="sub">
         {label ? `${label} on Pinnacle` : 'Pinnacle'}{drop && `, ${drop}`}
       </div>
-      <LimitNote r={r} />
     </td>
   )
 }

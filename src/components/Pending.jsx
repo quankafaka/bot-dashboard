@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { money, pct, when, tone } from '../lib/format'
+import { money, pct, tone, betTime, zoneName } from '../lib/format'
 import { useOdds } from '../lib/odds'
-import AlertCell from './AlertCell'
+import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
 import { marketLabel } from '../lib/metrics'
@@ -11,10 +11,10 @@ import { marketLabel } from '../lib/metrics'
 // reached pdropper, or pdropper never graded it. They are kept apart so they neither count as money at
 // risk nor sit in the pending list forever.
 export default function Pending({ rows, currency, accountNames }) {
-  const byStart = (a, b) => (a.startMs ?? a.placedMs) - (b.startMs ?? b.placedMs)
-  const open = useMemo(() => rows.filter((r) => r.status === 'pending').sort(byStart), [rows])
-  const unlogged = useMemo(() => rows.filter((r) => r.status === 'unlogged')
-    .sort((a, b) => b.placedMs - a.placedMs), [rows])
+  // Newest bet first, by when it was placed -- the same order as Graded.
+  const byPlaced = (a, b) => b.placedMs - a.placedMs
+  const open = useMemo(() => rows.filter((r) => r.status === 'pending').sort(byPlaced), [rows])
+  const unlogged = useMemo(() => rows.filter((r) => r.status === 'unlogged').sort(byPlaced), [rows])
   const stake = open.reduce((a, r) => a + r.stake, 0)
 
   return (
@@ -48,6 +48,8 @@ export default function Pending({ rows, currency, accountNames }) {
 function BetTable({ rows, currency, accountNames, showId = false }) {
   const fmt = useOdds()
   const mobile = useIsMobile()
+  const zone = zoneName(rows[0]?.book)
+  const showLimit = hasLimits(rows)
   if (mobile) {
     return (
       <div className="cards-list">
@@ -63,10 +65,11 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
       <table>
         <thead>
           <tr>
-            <th scope="col">Starts</th>
+            <th scope="col">Placed{zone && <div className="sub">{zone}</div>}</th>
             <th scope="col">Game</th>
             <th scope="col">Bet</th>
             <th scope="col">Alert</th>
+            {showLimit && <th scope="col" className="num">Limit</th>}
             <th scope="col" className="num">Odds</th>
             <th scope="col" className="num">Stake</th>
             <th scope="col" className="num">EV at log</th>
@@ -78,7 +81,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
         <tbody>
           {rows.map((r) => (
             <tr key={r.wager_id}>
-              <td className="nowrap">{when(r.start_time ?? r.placed_at)}</td>
+              <td className="nowrap">{betTime(r)}</td>
               <td>
                 <div>{r.home_team} v {r.away_team}</div>
                 <div className="sub">{r.league}</div>
@@ -91,6 +94,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
                 </div>
               </td>
               <AlertCell r={r} />
+              {showLimit && <LimitCell r={r} />}
               <td className="num">
                 {fmt(r.price_filled)}
                 {r.closing_price != null && <div className="sub">closed {fmt(r.closing_price)}</div>}

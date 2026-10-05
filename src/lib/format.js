@@ -38,12 +38,34 @@ export function formatOdds(x, format = 'decimal') {
   return format === 'american' ? american(x) : odds(x)
 }
 
-const dt = new Intl.DateTimeFormat('en-CA', {
-  timeZone: 'America/Toronto', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
-})
-export function when(iso) {
-  return iso ? dt.format(new Date(iso)) : '—'
+const DEFAULT_ZONE = 'America/Toronto'
+const dtFmt = new Map()
+export function when(iso, timeZone = DEFAULT_ZONE) {
+  if (!iso) return '—'
+  if (!dtFmt.has(timeZone)) {
+    dtFmt.set(timeZone, new Intl.DateTimeFormat('en-CA', {
+      timeZone, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+    }))
+  }
+  return dtFmt.get(timeZone).format(new Date(iso))
 }
+
+// The clock each book's bet times are read on. BetInAsian is run from Costa
+// Rica (UTC-6 all year, no daylight saving); every other book stays on
+// Montreal time, like the rest of the site.
+const BOOK_ZONE = { BetInAsian: 'America/Costa_Rica' }
+const ZONE_NAME = { 'America/Costa_Rica': 'Costa Rica time' }
+
+export const bookZone = (book) => BOOK_ZONE[book] ?? DEFAULT_ZONE
+
+// When the bet was placed, on its book's clock.
+export const betTime = (r) => when(r.placed_at, bookZone(r.book))
+
+// 'Costa Rica time' for a book on its own clock, '' for Montreal time.
+export const zoneName = (book) => ZONE_NAME[bookZone(book)] ?? ''
+// The same, short enough for a phone card: 'CR', or ''.
+const ZONE_SHORT = { 'America/Costa_Rica': 'CR' }
+export const zoneShort = (book) => ZONE_SHORT[bookZone(book)] ?? ''
 
 export function tone(x) {
   if (x == null || x === 0) return ''

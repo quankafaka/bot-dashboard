@@ -1,4 +1,4 @@
-import { money, pct, tone, betTime, zoneShort } from '../lib/format'
+import { money, pct, tone, betTime } from '../lib/format'
 import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
 import { alertLabel } from './AlertCell'
@@ -67,7 +67,7 @@ export default function BetCard({ r, currency, accountNames, mode }) {
         </div>
       )}
       <div className="bc-meta">
-        Placed {betTime(r)}{zoneShort(r.book) && ` ${zoneShort(r.book)}`}, {r.league}
+        Placed {betTime(r)}, {r.league}
         {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}, {account}
         {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
         {r.is_freebet && <span className="tag">Free bet</span>}

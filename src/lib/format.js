@@ -52,20 +52,14 @@ export function when(iso, timeZone = DEFAULT_ZONE) {
 
 // The clock each book's bet times are read on. BetInAsian is run from Costa
 // Rica (UTC-6 all year, no daylight saving); every other book stays on
-// Montreal time, like the rest of the site.
+// Montreal time, like the rest of the site. Not labelled on the page: it is
+// simply the time that book is read in.
 const BOOK_ZONE = { BetInAsian: 'America/Costa_Rica' }
-const ZONE_NAME = { 'America/Costa_Rica': 'Costa Rica time' }
 
 export const bookZone = (book) => BOOK_ZONE[book] ?? DEFAULT_ZONE
 
 // When the bet was placed, on its book's clock.
 export const betTime = (r) => when(r.placed_at, bookZone(r.book))
-
-// 'Costa Rica time' for a book on its own clock, '' for Montreal time.
-export const zoneName = (book) => ZONE_NAME[bookZone(book)] ?? ''
-// The same, short enough for a phone card: 'CR', or ''.
-const ZONE_SHORT = { 'America/Costa_Rica': 'CR' }
-export const zoneShort = (book) => ZONE_SHORT[bookZone(book)] ?? ''
 
 export function tone(x) {
   if (x == null || x === 0) return ''

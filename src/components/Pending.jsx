@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { money, pct, tone, betTime, zoneName } from '../lib/format'
+import { money, pct, tone, betTime } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
@@ -48,7 +48,6 @@ export default function Pending({ rows, currency, accountNames }) {
 function BetTable({ rows, currency, accountNames, showId = false }) {
   const fmt = useOdds()
   const mobile = useIsMobile()
-  const zone = zoneName(rows[0]?.book)
   const showLimit = hasLimits(rows)
   if (mobile) {
     return (
@@ -65,7 +64,7 @@ function BetTable({ rows, currency, accountNames, showId = false }) {
       <table>
         <thead>
           <tr>
-            <th scope="col">Placed{zone && <div className="sub">{zone}</div>}</th>
+            <th scope="col">Placed</th>
             <th scope="col">Game</th>
             <th scope="col">Bet</th>
             <th scope="col">Alert</th>

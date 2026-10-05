@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { money, pct, tone, betTime, zoneName } from '../lib/format'
+import { money, pct, tone, betTime } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
@@ -17,7 +17,6 @@ export default function Graded({ rows, currency, accountNames }) {
   const [shown, setShown] = useState(PAGE)
   const mobile = useIsMobile()
 
-  const zone = zoneName(rows[0]?.book)
   const showLimit = hasLimits(rows)
   const graded = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -47,7 +46,7 @@ export default function Graded({ rows, currency, accountNames }) {
         <table>
           <thead>
             <tr>
-              <th scope="col">Placed{zone && <div className="sub">{zone}</div>}</th>
+              <th scope="col">Placed</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
               <th scope="col">Alert</th>

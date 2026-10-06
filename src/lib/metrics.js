@@ -279,3 +279,4 @@ export function accountBalance(rows, book) {
     since,
   }
 }
+

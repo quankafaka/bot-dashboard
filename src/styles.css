@@ -315,3 +315,19 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 /* The note under 'Split by' when a limit view is on. */
 .split-note { margin: 0; padding: 0 20px 12px; max-width: 100ch; font-size: 12px; }
 @media (max-width: 700px) { .split-note { padding: 0 16px 10px; } }
+
+/* ---- patch notes ------------------------------------------------------- */
+.notes-body { padding: 4px 20px 18px; }
+.notes-section { margin-top: 14px; }
+.notes-section h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+.notes-section p { margin: 0 0 8px; max-width: 95ch; color: var(--muted); line-height: 1.5; }
+.notes-section ul { margin: 6px 0 0; padding-left: 20px; max-width: 95ch; color: var(--muted); line-height: 1.5; }
+.notes-section li + li { margin-top: 4px; }
+.notes-section .scroll { margin: 6px 0 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.notes-section table th, .notes-section table td { padding: 8px 12px; }
+.tabs .short { display: none; }
+@media (max-width: 700px) {
+  .notes-body { padding: 2px 16px 16px; }
+  .tabs .long { display: none; }
+  .tabs .short { display: inline; }
+}

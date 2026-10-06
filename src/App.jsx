@@ -9,6 +9,7 @@ import Pending from './components/Pending'
 import Graded from './components/Graded'
 import Daily from './components/Daily'
 import Models from './components/Models'
+import PatchNotes from './components/PatchNotes'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 
 const REFRESH_MS = 60_000
@@ -169,6 +170,7 @@ function Dashboard({ email }) {
           ['pending', 'Pending'],
           ['graded', 'Graded'],
           ...(showModels ? [['models', 'NFL / CFB']] : []),
+          ['notes', <><span className="long">Patch notes</span><span className="short">Notes</span></>],
         ].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={view === id} className={view === id ? 'on' : ''}
             onClick={() => setTab(id)}>
@@ -201,6 +203,7 @@ function Dashboard({ email }) {
           )}
           {view === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
           {view === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'notes' && <PatchNotes />}
           {view === 'models' && (
             <Models rows={bookRows} filters={filters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} labelsReady={labelsReady} />

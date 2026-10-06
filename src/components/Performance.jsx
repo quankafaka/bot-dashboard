@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown } from '../lib/metrics'
+import { DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown,
+  BASE_MIN_EV, limitRuleMinimums } from '../lib/metrics'
 import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
@@ -70,7 +71,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         {hasLimits && limitView && (
           <p className="muted split-note">
             {shownDim === 'limitRule'
-              ? 'Soccer only. Full and reduced stake are bets the rule sized; the "before the rule" rows are older bets, grouped by the band their limit falls in today. The skip band is what the rule now refuses.'
+              ? `Soccer only. Every bet, whenever it was placed, grouped by what today's rule does with it. "Higher EV" means its limit is low enough to need more than the normal +${BASE_MIN_EV}% (${limitRuleMinimums()}). "Under it" and "Skip band" are the bets the rule now turns away, so those rows show how they did.`
               : "Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest."}
           </p>
         )}

@@ -118,63 +118,85 @@ export function breakdown(rows, dimId) {
 // ---- the soccer Pinnacle-limit rule ---------------------------------------
 // A mirror of the bot's r_limit_rules.SOCCER_BANDS. If one changes, change
 // the other: the bot decides with that table, this one only labels bets.
-//   skipBelow: limits under it are skipped
-//   fullFrom:  limits at or above it get the full stake; between is reduced
+//   skipBelow:   limits under it are skipped
+//   minEv:       under a limit of strictBelow, a bet needs this EV (after
+//                commission) instead of the normal floor
+// Every bet the rule lets through gets the full stake (since 2026-10-06; it
+// used to halve the stake at middling limits -- 'reduced' on older bets).
+export const BASE_MIN_EV = 1.0
 export const LIMIT_RULE_BANDS = {
-  ah: { label: 'Asian handicap', skipBelow: 150, fullFrom: 400 },
-  total: { label: 'Goal totals', skipBelow: 200, fullFrom: 400 },
-  ml: { label: '1X2', skipBelow: 300, fullFrom: 300 },
-  derivative: { label: 'Corners / bookings', skipBelow: 0, fullFrom: Infinity },
+  ah: { label: 'Asian handicap', skipBelow: 150, minEv: 4.5, strictBelow: 400 },
+  total: { label: 'Goal totals', skipBelow: 200, minEv: 2.5, strictBelow: 400 },
+  ml: { label: '1X2', skipBelow: 300, minEv: 3.0, strictBelow: 500 },
+  corners: { label: 'Corners', skipBelow: 125 },
+  bookings: { label: 'Bookings', skipBelow: 125 },
 }
 
 export function limitRuleMarket(r) {
-  if (r.variant && r.variant !== 'main') return 'derivative'
+  if (r.variant && r.variant !== 'main') return LIMIT_RULE_BANDS[r.variant] ? r.variant : null
   if (r.market_type === 'spread') return 'ah'
   if (r.market_type === 'total') return 'total'
   if (String(r.market_type ?? '').startsWith('moneyline')) return 'ml'
   return null
 }
 
-// Which band the rule puts a soccer bet's limit in: 'full', 'reduced' or
-// 'skip'. null when the rule says nothing (not soccer, no limit, no market).
+// Where the rule puts a soccer bet's limit today: 'skip', 'higher' (needs
+// the band's minEv) or 'normal' (the normal +1% floor). null when the rule
+// says nothing (not soccer, no limit, no band for the market).
 export function limitRuleBand(r) {
   if (r.sport !== 'Soccer' || r.pin_limit == null) return null
   const band = LIMIT_RULE_BANDS[limitRuleMarket(r)]
   if (!band) return null
   if (r.pin_limit < band.skipBelow) return 'skip'
-  if (r.pin_limit >= band.fullFrom) return 'full'
-  return 'reduced'
+  if (band.minEv != null && r.pin_limit < band.strictBelow) return 'higher'
+  return 'normal'
 }
 
+// 'Asian handicap +4.5%, Goal totals +2.5%, 1X2 +3%' -- the minimums, in words.
+export const limitRuleMinimums = () => Object.values(LIMIT_RULE_BANDS)
+  .filter((b) => b.minEv != null).map((b) => `${b.label} +${b.minEv}%`).join(', ')
+
+// The EV the rule asks of this bet at its limit, or null for the normal floor.
+export function limitRuleMinEv(r) {
+  return limitRuleBand(r) === 'higher' ? LIMIT_RULE_BANDS[limitRuleMarket(r)].minEv : null
+}
+
+// The bet's EV as the rule would judge it: pdropper's EV at log (after
+// commission -- the bot logs the booked price), else the bot's own probe EV.
+const ruleEv = (r) => r.ev_pct_log ?? r.ev_pct_bot ?? null
+
 export const LIMIT_RULE_ORDER = [
-  'Full stake', 'Reduced stake',
-  'Before the rule: full band', 'Before the rule: reduced band', 'Before the rule: skip band',
+  'Normal EV floor', 'Higher EV, cleared it', 'Higher EV, under it', 'Skip band',
   'Soccer, limit unknown', 'No rule (not soccer)',
 ]
 
-// What the rule did with a bet -- or, for one placed before it existed, which
-// band it falls in now. The second group is what makes the rule checkable:
-// 'Before the rule: skip band' is how the bets the rule now refuses did.
+// Every bet grouped by what TODAY'S rule does with it, whenever it was placed.
+// 'Higher EV, under it' and 'Skip band' are the bets the rule now turns away,
+// so their rows are how those bets did -- the check on whether it is right.
 export function limitRuleLabel(r) {
   if (r.sport !== 'Soccer') return 'No rule (not soccer)'
-  if (r.limit_tier === 'full') return 'Full stake'
-  if (r.limit_tier === 'reduced') return 'Reduced stake'
   const band = limitRuleBand(r)
-  return band ? `Before the rule: ${band} band` : 'Soccer, limit unknown'
+  if (band == null) return 'Soccer, limit unknown'
+  if (band === 'skip') return 'Skip band'
+  if (band === 'normal') return 'Normal EV floor'
+  const ev = ruleEv(r)
+  return ev != null && ev >= limitRuleMinEv(r) ? 'Higher EV, cleared it' : 'Higher EV, under it'
 }
 
 export const LIMIT_BAND_ORDER = [
-  'Under $150', '$150–199', '$200–299', '$300–399', '$400–999', '$1,000 and up', '—',
+  'Under $150', '$150–199', '$200–299', '$300–399', '$400–499', '$500–999', '$1,000 and up', '—',
 ]
 
-// Cut where the rule cuts, so a row here is never half one tier, half another.
+// Cut where the rule cuts ($150, $200, $300, $400, $500), so a row here is
+// never half one band, half another.
 export function limitBand(x) {
   if (x == null) return '—'
   if (x < 150) return 'Under $150'
   if (x < 200) return '$150–199'
   if (x < 300) return '$200–299'
   if (x < 400) return '$300–399'
-  if (x < 1000) return '$400–999'
+  if (x < 500) return '$400–499'
+  if (x < 1000) return '$500–999'
   return '$1,000 and up'
 }
 

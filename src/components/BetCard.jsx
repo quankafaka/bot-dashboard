@@ -3,6 +3,7 @@ import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
 import { alertLabel } from './AlertCell'
 import { limitMoney } from '../lib/format'
+import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
 
 const RESULT_LABEL = {
   WIN: 'Won', LOSS: 'Lost', HALF_WIN: 'Half won', HALF_LOSS: 'Half lost', PUSH: 'Push', VOID: 'Void',
@@ -42,7 +43,8 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     mode !== 'graded' && r.ev_pct_log != null ? `EV ${pct(r.ev_pct_log)}` : null,
     mode === 'pending' && r.current_ev_pct != null ? `now ${pct(r.current_ev_pct)}` : null,
-    r.pin_limit != null ? `limit ${limitMoney(r.pin_limit)}` : null,
+    r.pin_limit != null ? `limit ${limitMoney(r.pin_limit)}${
+      limitRuleBand(r) === 'higher' ? `, needs +${limitRuleMinEv(r)}%` : ''}` : null,
   ].filter(Boolean)
 
   return (
@@ -71,7 +73,7 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
         {showAccount && `, ${accountNames[r.account] ?? r.account}`}
         {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
         {r.is_freebet && <span className="tag">Free bet</span>}
-        {r.limit_tier === 'reduced' && <span className="tag">Reduced stake</span>}
+        {r.limit_tier === 'reduced' && <span className="tag">Reduced stake (old rule)</span>}
       </div>
       {mode === 'ungraded' && (
         <div className="bc-meta">

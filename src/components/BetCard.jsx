@@ -43,7 +43,7 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     mode !== 'graded' && r.ev_pct_log != null ? `EV ${pct(r.ev_pct_log)}` : null,
     mode === 'pending' && r.current_ev_pct != null ? `now ${pct(r.current_ev_pct)}` : null,
-    r.pin_limit != null ? `limit ${limitMoney(r.pin_limit)}${
+    r.pin_limit != null ? `Pinnacle limit ${limitMoney(r.pin_limit)}${
       limitRuleBand(r) === 'higher' ? `, needs +${limitRuleMinEv(r)}%` : ''}` : null,
   ].filter(Boolean)
 

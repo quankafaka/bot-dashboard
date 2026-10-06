@@ -52,7 +52,7 @@ export default function Graded({ rows, currency, accountNames }) {
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
               <th scope="col">Alert</th>
-              {showLimit && <th scope="col" className="num">Limit</th>}
+              {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
               <th scope="col" className="num">CLV</th>

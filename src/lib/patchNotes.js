@@ -57,7 +57,6 @@ export const PATCH_NOTES = [
         heading: 'On this site',
         bullets: [
           'The Limit column says what the rule asks at that limit: "Needs +4.5%" or "Skip band". Bets the old rule halved still say "Reduced stake (old rule)".',
-          'Overview, Split by "Limit rule" now groups every bet by what today\'s rule does with it: normal floor, higher EV cleared, higher EV not cleared, skip band. The last two are the bets the rule now turns away.',
           'Split by "Pinnacle limit" has a new $400–499 band, where the 1X2 minimum stops.',
           'This page.',
         ],
@@ -95,7 +94,7 @@ export const PATCH_NOTES = [
           'Pending shows when each bet was placed, newest first, instead of kickoff.',
           'BetInAsian times are in Costa Rica time.',
           'The Account column only shows on a book with more than one account.',
-          'Overview, Split by: "Pinnacle limit" and "Limit rule", plus Avg CLV and Beat close columns on every split.',
+          'Overview, Split by "Pinnacle limit", plus Avg CLV and Beat close columns on every split.',
         ],
       },
     ],

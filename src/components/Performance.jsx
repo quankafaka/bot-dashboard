@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown,
-  BASE_MIN_EV, limitRuleMinimums } from '../lib/metrics'
+import { DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown } from '../lib/metrics'
 import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
@@ -19,7 +18,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   }
   // Before `table`, which uses shownDim. The limit splits only once v_wager_limit (migration 009) has data.
   const hasLimits = rows.some((r) => r.pin_limit != null)
-  const limitView = dim === 'limit' || dim === 'limitRule'
+  const limitView = dim === 'limit'
   const shownDim = (!hasLimits && limitView) ? 'sport' : dim
   const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
   const s = useMemo(() => summarize(filtered), [filtered])
@@ -70,9 +69,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         </header>
         {hasLimits && limitView && (
           <p className="muted split-note">
-            {shownDim === 'limitRule'
-              ? `Soccer only. Every bet, whenever it was placed, grouped by what today's rule does with it. "Higher EV" means its limit is low enough to need more than the normal +${BASE_MIN_EV}% (${limitRuleMinimums()}). "Under it" and "Skip band" are the bets the rule now turns away, so those rows show how they did.`
-              : "Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest."}
+            Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest.
           </p>
         )}
         {mobile ? (

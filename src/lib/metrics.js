@@ -90,11 +90,9 @@ export const DIMENSIONS = [
   { id: 'source', label: 'Recorded by', key: (r) => SOURCE_LABEL[r.source] ?? r.source },
   { id: 'strategy', label: 'System', key: (r) => STRATEGY_LABEL[r.strategy] ?? 'Unattributed' },
   { id: 'odds', label: 'Odds band', key: (r) => oddsBand(r.price_filled) },
-  // The soccer limit rule. Shown once v_wager_limit has data (needsLimits).
+  // Shown once v_wager_limit has data (needsLimits).
   { id: 'limit', label: 'Pinnacle limit', key: (r) => limitBand(r.pin_limit),
     order: () => LIMIT_BAND_ORDER, needsLimits: true },
-  { id: 'limitRule', label: 'Limit rule', key: (r) => limitRuleLabel(r),
-    order: () => LIMIT_RULE_ORDER, needsLimits: true },
 ]
 
 export function breakdown(rows, dimId) {
@@ -152,35 +150,9 @@ export function limitRuleBand(r) {
   return 'normal'
 }
 
-// 'Asian handicap +4.5%, Goal totals +2.5%, 1X2 +3%' -- the minimums, in words.
-export const limitRuleMinimums = () => Object.values(LIMIT_RULE_BANDS)
-  .filter((b) => b.minEv != null).map((b) => `${b.label} +${b.minEv}%`).join(', ')
-
 // The EV the rule asks of this bet at its limit, or null for the normal floor.
 export function limitRuleMinEv(r) {
   return limitRuleBand(r) === 'higher' ? LIMIT_RULE_BANDS[limitRuleMarket(r)].minEv : null
-}
-
-// The bet's EV as the rule would judge it: pdropper's EV at log (after
-// commission -- the bot logs the booked price), else the bot's own probe EV.
-const ruleEv = (r) => r.ev_pct_log ?? r.ev_pct_bot ?? null
-
-export const LIMIT_RULE_ORDER = [
-  'Normal EV floor', 'Higher EV, cleared it', 'Higher EV, under it', 'Skip band',
-  'Soccer, limit unknown', 'No rule (not soccer)',
-]
-
-// Every bet grouped by what TODAY'S rule does with it, whenever it was placed.
-// 'Higher EV, under it' and 'Skip band' are the bets the rule now turns away,
-// so their rows are how those bets did -- the check on whether it is right.
-export function limitRuleLabel(r) {
-  if (r.sport !== 'Soccer') return 'No rule (not soccer)'
-  const band = limitRuleBand(r)
-  if (band == null) return 'Soccer, limit unknown'
-  if (band === 'skip') return 'Skip band'
-  if (band === 'normal') return 'Normal EV floor'
-  const ev = ruleEv(r)
-  return ev != null && ev >= limitRuleMinEv(r) ? 'Higher EV, cleared it' : 'Higher EV, under it'
 }
 
 export const LIMIT_BAND_ORDER = [

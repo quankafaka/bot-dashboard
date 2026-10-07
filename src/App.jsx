@@ -67,7 +67,7 @@ function Dashboard({ email }) {
     setLoading(true)
     try {
       const [w, a, b, labels, limits] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits()])
+        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
@@ -82,7 +82,10 @@ function Dashboard({ email }) {
         r.limit_tier = l?.tier ?? null
       }
       setLabelsReady(labels != null)
-      setRows(w)
+      // Only the books this user may see (fetchBooks), so a restricted book's
+      // bets never sit in memory for anyone else.
+      const allowed = new Set(b.map((x) => x.name))
+      setRows(w.filter((r) => allowed.has(r.book)))
       setAccounts(a)
       setBooks(b)
       // First load, or a book that was taken away: show the first one allowed.
@@ -95,7 +98,7 @@ function Dashboard({ email }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [email])
 
   useEffect(() => {
     load()
@@ -110,6 +113,10 @@ function Dashboard({ email }) {
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
   const showModels = filters.book === MODEL_BOOK
+  // A book with no bot (Bet99): every bet was logged by hand, so the
+  // 'include bets the bot did not record' switch would only hide all of them.
+  const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')
+  const viewFilters = logOnly ? { ...filters, includeManual: true } : filters
   const view = tab === 'models' && !showModels ? 'performance' : tab
 
   return (
@@ -194,18 +201,18 @@ function Dashboard({ email }) {
       {rows && book && (
         <main>
           {view === 'performance' && (
-            <Performance rows={bookRows} filters={filters} setFilters={setFilters}
+            <Performance rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
           {view === 'daily' && (
-            <Daily rows={bookRows} filters={filters} setFilters={setFilters}
+            <Daily rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
           {view === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
           {view === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
           {view === 'notes' && <PatchNotes />}
           {view === 'models' && (
-            <Models rows={bookRows} filters={filters} setFilters={setFilters}
+            <Models rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} labelsReady={labelsReady} />
           )}
         </main>

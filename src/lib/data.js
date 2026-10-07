@@ -125,13 +125,24 @@ export async function fetchAccounts() {
 
 // The books this user may see, as granted in user_book_access (the database
 // only returns those). Balance columns come from migration 003.
-const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu']
+const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
-export async function fetchBooks() {
+// Books only some people may see. The real gate is user_book_access
+// (migration 010 grants Bet99 to these two); this list only keeps the tab
+// hidden from anyone else should the database ever hand them the book. Adding
+// a person means adding them in BOTH places.
+const RESTRICTED_BOOKS = {
+  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com'],
+}
+const maySee = (name, email) =>
+  !RESTRICTED_BOOKS[name] || RESTRICTED_BOOKS[name].includes(String(email ?? '').toLowerCase())
+
+export async function fetchBooks(email) {
   const { data, error } = await supabase.from('dim_book').select('*')
   if (error) throw error
   return data
+    .filter((b) => maySee(b.name, email))
     .map((b) => ({
       name: b.name,
       currency: b.currency,

@@ -113,6 +113,69 @@ export function breakdown(rows, dimId) {
   return out.sort((a, b) => b.turnover - a.turnover)
 }
 
+// Two-level splits: every group of the outer dimension, with its rows split
+// again by the inner one (e.g. Total, then soccer / basketball / hockey).
+export const NESTED_DIMENSIONS = [
+  { id: 'market_sport', label: 'Market by sport', outer: 'market', inner: 'sport' },
+]
+
+export function breakdownNested(rows, outerId, innerId) {
+  const outer = DIMENSIONS.find((d) => d.id === outerId)
+  const groups = new Map()
+  for (const r of rows.filter((x) => x.status === 'graded')) {
+    const k = outer.key(r) ?? '—'
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(r)
+  }
+  return [...groups.entries()]
+    .map(([key, rs]) => ({ key, ...summarize(rs), children: breakdown(rs, innerId) }))
+    .sort((a, b) => b.turnover - a.turnover)
+}
+
+// ---- before / after a cutoff ----------------------------------------------
+// The days the limit rule changed (see the patch notes), offered as quick
+// cutoffs. A bet placed ON the cutoff day counts as after.
+export const LIMIT_CHANGES = [
+  { date: '2026-10-05', label: 'First limit rule' },
+  { date: '2026-10-06', label: 'Higher-EV rule' },
+  { date: '2026-10-07', label: 'Basketball and hockey' },
+]
+export const DEFAULT_CUTOFF = '2026-10-06'
+
+// Settled bets placed before the cutoff day against those placed on or
+// after it (Montreal calendar day, placed_date_local), as summarize() pairs:
+// one for every bet, and one per group of dimId (a DIMENSIONS or
+// NESTED_DIMENSIONS id). clvChange is after minus before, in points.
+export function compareAtCutoff(rows, cutoff, dimId) {
+  const graded = rows.filter((r) => r.status === 'graded')
+  const pair = (rs) => {
+    const before = summarize(rs.filter((r) => r.placed_date_local < cutoff))
+    const after = summarize(rs.filter((r) => r.placed_date_local >= cutoff))
+    const clvChange = before.avgClv != null && after.avgClv != null ? after.avgClv - before.avgClv : null
+    return { before, after, clvChange, turnover: before.turnover + after.turnover }
+  }
+  const nested = NESTED_DIMENSIONS.find((d) => d.id === dimId)
+  const group = (rs, id) => {
+    const dim = DIMENSIONS.find((d) => d.id === id)
+    const m = new Map()
+    for (const r of rs) {
+      const k = dim.key(r) ?? '—'
+      if (!m.has(k)) m.set(k, [])
+      m.get(k).push(r)
+    }
+    const out = [...m.entries()].map(([key, g]) => ({ key, rows: g, ...pair(g) }))
+    if (dim.order) {
+      const order = dim.order()
+      const at = (k) => (order.includes(k) ? order.indexOf(k) : order.length)
+      return out.sort((a, b) => at(a.key) - at(b.key))
+    }
+    return out.sort((a, b) => b.turnover - a.turnover)
+  }
+  const groups = group(graded, nested ? nested.outer : dimId).map(({ rows: g, ...rest }) => (
+    nested ? { ...rest, children: group(g, nested.inner).map(({ rows: _, ...c }) => c) } : rest))
+  return { total: pair(graded), groups }
+}
+
 // ---- the Pinnacle-limit rule (soccer, basketball, hockey) -----------------
 // A mirror of the bot's r_limit_rules.SPORT_BANDS. If one changes, change
 // the other: the bot decides with that table, this one only labels bets.

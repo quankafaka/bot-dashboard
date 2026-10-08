@@ -7,15 +7,30 @@
 export const PATCH_NOTES = [
   {
     date: '2026-10-08',
-    title: 'Totals switched off',
+    title: 'Overview: CLV before and after, and Market by sport',
+    sections: [
+      {
+        heading: 'On this site',
+        bullets: [
+          'A new "CLV before and after" panel at the bottom of the Overview compares settled bets placed before a cutoff day with those placed on or after it: bets, average CLV, beat close and expected yield on each side, and the change in CLV.',
+          'The cutoff has one-tap buttons for each limit rule change (2026-10-05, 10-06 and 10-07) or takes any date. It ignores the period filter so both sides are complete; the account and recorded-by filters still apply.',
+          'It splits by market, sport, market by sport, or Pinnacle limit.',
+          'Split by has a new "Market by sport" option: each market (Total, Handicap, Moneyline...) with its sports listed under it.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-08',
+    title: 'Totals switched off (except NFL / CFB model)',
     sections: [
       {
         heading: 'What changed',
-        text: 'The bot no longer bets totals (over/under) at all, for now. Every sport, every period.',
+        text: 'The bot no longer bets totals (over/under) off Pinnacle alerts, for now. Every sport, every period. The NFL and CFB model still bets its 1st-half totals.',
         bullets: [
           'Covers soccer goal, corner and booking totals, tennis set and game totals, and basketball, baseball, hockey and American football totals, including first-half and first-period markets.',
           'Pinnacle total alerts are refused before the book is searched, so they will not appear as bets.',
-          'NFL and CFB model bets are spreads only. The model still prices the game, but no 1st-half total is read or placed, paper bets included.',
+          'NFL and CFB model bets are not affected: 1st-half spreads and totals are both still priced and placed as before.',
           'Spreads and moneylines are unchanged.',
         ],
       },

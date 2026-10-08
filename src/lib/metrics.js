@@ -133,14 +133,9 @@ export function breakdownNested(rows, outerId, innerId) {
 }
 
 // ---- before / after a cutoff ----------------------------------------------
-// The days the limit rule changed (see the patch notes), offered as quick
-// cutoffs. A bet placed ON the cutoff day counts as after.
-export const LIMIT_CHANGES = [
-  { date: '2026-10-05', label: 'First limit rule' },
-  { date: '2026-10-06', label: 'Higher-EV rule' },
-  { date: '2026-10-07', label: 'Basketball and hockey' },
-]
-export const DEFAULT_CUTOFF = '2026-10-06'
+// The day the higher-EV limit rule took over (2026-10-06, see the patch
+// notes). A bet placed ON that day counts as after.
+export const LIMIT_CUTOFF = '2026-10-06'
 
 // Settled bets placed before the cutoff day against those placed on or
 // after it (Montreal calendar day, placed_date_local), as summarize() pairs:
@@ -200,6 +195,9 @@ export const LIMIT_RULE_BANDS = {
 // here) plus the other spellings the bot accepts for hockey.
 const LIMITED_SPORTS = new Set(['soccer', 'basketball', 'hockey', 'ice hockey',
   'ice-hockey', 'icehockey', 'nhl'])
+// The rule only ever ran on the BetInAsian bot. Mise-o-jeu bets can carry a
+// Pinnacle limit too (pdropper logs one), but the rule never judged them.
+export const LIMIT_RULE_BOOK = 'BetInAsian'
 const isSoccer = (r) => String(r.sport ?? '').trim().toLowerCase() === 'soccer'
 
 export function limitRuleMarket(r) {
@@ -216,6 +214,7 @@ export function limitRuleMarket(r) {
 // band's minEv) or 'normal' (the normal +1% floor). null when the rule says
 // nothing (a sport it does not cover, no limit, no band for the market).
 export function limitRuleBand(r) {
+  if (r.book !== LIMIT_RULE_BOOK) return null
   if (!LIMITED_SPORTS.has(String(r.sport ?? '').trim().toLowerCase()) || r.pin_limit == null) return null
   const band = LIMIT_RULE_BANDS[limitRuleMarket(r)]
   if (!band) return null
@@ -357,4 +356,3 @@ export function accountBalance(rows, book) {
     since,
   }
 }
-

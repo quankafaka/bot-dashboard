@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
 import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices } from './lib/data'
-import { accountBalance, DEFAULT_CUTOFF } from './lib/metrics'
+import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
 import Performance from './components/Performance'
@@ -61,8 +61,6 @@ function Dashboard({ email }) {
   const [tab, setTab] = useState('performance')
   const [filters, setFilters] = useState({
     book: null, period: '30d', accounts: [], includeManual: true,
-    // Overview's before / after panel: the first day counted as 'after'.
-    cutoff: DEFAULT_CUTOFF,
   })
 
   const load = useCallback(async () => {

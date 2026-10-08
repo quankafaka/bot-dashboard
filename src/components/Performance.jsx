@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { DIMENSIONS, NESTED_DIMENSIONS, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
+import { DIMENSIONS, NESTED_DIMENSIONS, LIMIT_RULE_BOOK, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
 import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
@@ -150,8 +150,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         )}
       </section>
 
-      <BeforeAfter rows={rows} filters={filters} setFilters={setFilters} />
+      {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
+      {filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} />}
     </>
   )
 }
-

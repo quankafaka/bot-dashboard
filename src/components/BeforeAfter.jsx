@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { LIMIT_CHANGES, applyFilters, compareAtCutoff, limitBand } from '../lib/metrics'
+import { LIMIT_CUTOFF, applyFilters, compareAtCutoff, limitBand } from '../lib/metrics'
 import { dayLabel, pct, tone } from '../lib/format'
 import { useIsMobile } from '../lib/useIsMobile'
 
@@ -16,16 +16,16 @@ const EMPTY = pct(null)
 const points = (x) => (x == null ? EMPTY : `${x > 0 ? '+' : ''}${x.toFixed(2)} pts`)
 const beat = (x) => (x == null ? EMPTY : `${x.toFixed(0)}%`)
 
-// Settled bets before a cutoff day against those on or after it. Uses every
-// filter on the page except the period: the point is to compare two stretches
-// of time, and a 7-day window would leave one side empty.
-export default function BeforeAfter({ rows, filters, setFilters }) {
+// Settled bets before the higher-EV limit rule (2026-10-06) against those on
+// or after it. Uses every filter on the page except the period: the point is
+// to compare two stretches of time, and a 7-day window would leave one side
+// empty.
+export default function BeforeAfter({ rows, filters }) {
   const [split, setSplit] = useState('market')
   const mobile = useIsMobile()
   const hasLimits = rows.some((r) => r.pin_limit != null)
   const shownSplit = !hasLimits && split === 'limit' ? 'market' : split
-  const cutoff = filters.cutoff
-  const setCutoff = (d) => d && setFilters((f) => ({ ...f, cutoff: d }))
+  const cutoff = LIMIT_CUTOFF
 
   const allTime = useMemo(() => applyFilters(rows, { ...filters, period: 'all' }), [rows, filters])
   const cmp = useMemo(() => compareAtCutoff(allTime, cutoff, shownSplit), [allTime, cutoff, shownSplit])
@@ -70,20 +70,8 @@ export default function BeforeAfter({ rows, filters, setFilters }) {
         <div>
           <h2>CLV before and after</h2>
           <p className="muted">
-            Settled bets placed before {dayLabel(cutoff)} against those placed on or after it. All time; the other filters apply.
+            The higher-EV limit rule started {dayLabel(cutoff)}. Settled bets placed before that day against those placed on or after it. All time; the other filters apply.
           </p>
-        </div>
-        <div className="cmp-controls">
-          <div className="seg" role="group" aria-label="Cutoff">
-            {LIMIT_CHANGES.map((c) => (
-              <button key={c.date} className={cutoff === c.date ? 'on' : ''} aria-pressed={cutoff === c.date}
-                title={`Cutoff ${c.date}`} onClick={() => setCutoff(c.date)}>{c.label}</button>
-            ))}
-          </div>
-          <label className="date-pick">
-            <span>Cutoff</span>
-            <input type="date" value={cutoff} onChange={(e) => setCutoff(e.target.value)} />
-          </label>
         </div>
       </header>
       <div className="cmp-split">

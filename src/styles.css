@@ -340,16 +340,10 @@ tbody tr.child > th { padding-left: 34px; color: var(--muted); font-weight: 400;
 .day-row.child .day-name { font-weight: 400; color: var(--muted); }
 
 /* ---- CLV before and after ---------------------------------------------- */
-.cmp-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .cmp-split { padding: 12px 22px; border-bottom: 1px solid var(--border); }
-.date-pick { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
-.date-pick input {
-  padding: 5px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--raised);
-  font: 500 13px var(--mono);
-}
 th.split-head { text-align: center; color: var(--text); }
 .split-start { border-left: 1px solid var(--border-strong); }
 @media (max-width: 700px) {
   .cmp-split { padding: 10px 16px; }
-  .cmp-split .seg, .cmp-controls .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .cmp-split .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
 }

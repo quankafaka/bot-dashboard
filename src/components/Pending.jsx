@@ -4,7 +4,7 @@ import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
-import { marketLabel } from '../lib/metrics'
+import { betLabel } from '../lib/metrics'
 
 // Two lists. PENDING bets are waiting on a result. UNLOGGED bets are not:
 // their game finished long ago and no result is coming -- the bet never
@@ -69,7 +69,7 @@ function BetTable({ rows, currency, accountNames, showAccount, showId = false })
             <th scope="col">Placed</th>
             <th scope="col">Game</th>
             <th scope="col">Bet</th>
-            <th scope="col">Alert</th>
+            <th scope="col">Alert / model</th>
             {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
             <th scope="col" className="num">Odds</th>
             <th scope="col" className="num">Stake</th>
@@ -90,7 +90,7 @@ function BetTable({ rows, currency, accountNames, showAccount, showId = false })
               <td>
                 <div>{r.selection}</div>
                 <div className="sub">
-                  {marketLabel(r)}
+                  {betLabel(r)}
                   {showId && <span className="tag">{r.ev_pct_log == null ? 'Not in pdropper' : 'pdropper never graded it'}</span>}
                 </div>
               </td>

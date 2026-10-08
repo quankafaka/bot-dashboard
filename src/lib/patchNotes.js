@@ -6,6 +6,81 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-07',
+    title: 'Limit rule now covers basketball and hockey',
+    sections: [
+      {
+        heading: 'What changed',
+        text: 'The Pinnacle limit rule that has applied to soccer since 2026-10-06 now applies to basketball and hockey too, with the same numbers, market for market. Soccer is unchanged.',
+        table: {
+          head: ['Market', 'Skipped under', 'Needs this EV', 'Normal +1% from'],
+          rows: [
+            ['Spread (as Asian handicap)', '$150', '+4.5% under $400', '$400'],
+            ['Total (as goal totals)', '$200', '+2.5% under $400', '$400'],
+            ['Moneyline (as 1X2)', '$300', '+3.0% under $500', '$500'],
+          ],
+        },
+        bullets: [
+          "Hockey's 2-way (with overtime) and 3-way (regular time) moneylines both use the moneyline row.",
+          'Every bet that passes still gets the full stake.',
+          'If the limit cannot be read, the bet is skipped, as for soccer.',
+        ],
+      },
+      {
+        heading: 'Worth knowing',
+        bullets: [
+          'These numbers were fitted on soccer and not tested on basketball or hockey. Expect fewer bets in both. They will be refitted once there is a month of data.',
+          'First-half and first-period markets usually have lower limits, so more of them will be skipped.',
+        ],
+      },
+      {
+        heading: 'In Discord and on this site',
+        bullets: [
+          '#status: the 6-hour summary now has a line per sport and market, e.g. "basketball spread : cleared 3 · skipped 1".',
+          '#bets: the limit line names the sport, e.g. "hockey moneyline at a $350 Pinnacle limit -> needs +3% EV, full stake".',
+          'The Pinnacle limit column now says "Needs +3%" or "Skip band" on basketball and hockey bets too.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-07',
+    title: 'Maximum stake back to $100',
+    sections: [
+      {
+        heading: 'What changed',
+        table: {
+          head: ['', 'Before', 'Now'],
+          rows: [
+            ['Largest stake', '$200', '$100'],
+            ['Most on one game', '$200', '$100'],
+            ['Target average stake', '$97', '$48'],
+            ['Smallest stake', '$10', '$10'],
+          ],
+        },
+        bullets: [
+          'The average is kept at 48% of the maximum, as it was at $150 and $200.',
+          'The sizer\'s bankroll setting is provisional (1875, scaled from the earlier ones) until it is re-solved on the full wager history.',
+          'NFL and CFB model bets are not affected: they stay at a flat $25.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-07',
+    title: 'NFL / CFB model bets show the model price',
+    sections: [
+      {
+        heading: 'What changed',
+        bullets: [
+          "On a model bet, the Alert / model column shows the model's fair price and the EV it saw, e.g. \"Fair 1.846, NFL model, +5.5% EV\". Steam bets still show the Pinnacle move.",
+          'Pending and Graded both show it, on the Overview and on the NFL / CFB tab, and on phones.',
+          'Bets on a period say so next to the market, e.g. "Handicap, 1st half".',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-06',
     title: 'Soccer limit rule: a higher EV instead of a smaller stake',
     sections: [

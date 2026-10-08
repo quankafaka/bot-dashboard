@@ -117,6 +117,37 @@ export async function fetchLimits() {
   return limits
 }
 
+// The NFL / CFB models' own fair price on each bet, from v_wager_model
+// (migration 011): what the model said the bet was worth, and the EV it saw at
+// the price it priced. The bot writes the model's fair price where a steam
+// bet keeps Pinnacle's no-vig one (wagers.csv pinnacle_novig -> fact_wager
+// pin_novig), so this view only hands it out for model bets. Returns null,
+// not an error, until the migration has run.
+export async function fetchModelPrices() {
+  const prices = new Map()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_model')
+      .select('wager_id,model_price,model_ev_pct')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      prices.set(r.wager_id, {
+        price: r.model_price == null ? null : Number(r.model_price),
+        ev: r.model_ev_pct == null ? null : Number(r.model_ev_pct),
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return prices
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error

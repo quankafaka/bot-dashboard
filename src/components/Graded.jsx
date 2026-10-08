@@ -4,7 +4,7 @@ import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
-import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
+import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
 const PAGE = 100
 const RESULT_LABEL = {
@@ -51,7 +51,7 @@ export default function Graded({ rows, currency, accountNames }) {
               <th scope="col">Placed</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
-              <th scope="col">Alert</th>
+              <th scope="col">Alert / model</th>
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
@@ -74,7 +74,7 @@ export default function Graded({ rows, currency, accountNames }) {
                 <td>
                   <div>{r.selection}</div>
                   <div className="sub">
-                    {marketLabel(r)}
+                    {betLabel(r)}
                     {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
                     {r.is_freebet && <span className="tag">Free bet</span>}
                   </div>

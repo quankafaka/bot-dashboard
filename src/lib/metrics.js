@@ -113,9 +113,12 @@ export function breakdown(rows, dimId) {
   return out.sort((a, b) => b.turnover - a.turnover)
 }
 
-// ---- the soccer Pinnacle-limit rule ---------------------------------------
-// A mirror of the bot's r_limit_rules.SOCCER_BANDS. If one changes, change
+// ---- the Pinnacle-limit rule (soccer, basketball, hockey) -----------------
+// A mirror of the bot's r_limit_rules.SPORT_BANDS. If one changes, change
 // the other: the bot decides with that table, this one only labels bets.
+// Basketball and hockey use the soccer numbers (since 2026-10-07): spread as
+// Asian handicap, total as goal totals, moneyline as 1X2. Corners and
+// bookings are soccer only.
 //   skipBelow:   limits under it are skipped
 //   minEv:       under a limit of strictBelow, a bet needs this EV (after
 //                commission) instead of the normal floor
@@ -130,19 +133,27 @@ export const LIMIT_RULE_BANDS = {
   bookings: { label: 'Bookings', skipBelow: 125 },
 }
 
+// The sports the rule covers, as the sync writes them (title case, lowered
+// here) plus the other spellings the bot accepts for hockey.
+const LIMITED_SPORTS = new Set(['soccer', 'basketball', 'hockey', 'ice hockey',
+  'ice-hockey', 'icehockey', 'nhl'])
+const isSoccer = (r) => String(r.sport ?? '').trim().toLowerCase() === 'soccer'
+
 export function limitRuleMarket(r) {
-  if (r.variant && r.variant !== 'main') return LIMIT_RULE_BANDS[r.variant] ? r.variant : null
+  if (r.variant && r.variant !== 'main') {
+    return isSoccer(r) && LIMIT_RULE_BANDS[r.variant] ? r.variant : null
+  }
   if (r.market_type === 'spread') return 'ah'
   if (r.market_type === 'total') return 'total'
   if (String(r.market_type ?? '').startsWith('moneyline')) return 'ml'
   return null
 }
 
-// Where the rule puts a soccer bet's limit today: 'skip', 'higher' (needs
-// the band's minEv) or 'normal' (the normal +1% floor). null when the rule
-// says nothing (not soccer, no limit, no band for the market).
+// Where the rule puts a bet's limit today: 'skip', 'higher' (needs the
+// band's minEv) or 'normal' (the normal +1% floor). null when the rule says
+// nothing (a sport it does not cover, no limit, no band for the market).
 export function limitRuleBand(r) {
-  if (r.sport !== 'Soccer' || r.pin_limit == null) return null
+  if (!LIMITED_SPORTS.has(String(r.sport ?? '').trim().toLowerCase()) || r.pin_limit == null) return null
   const band = LIMIT_RULE_BANDS[limitRuleMarket(r)]
   if (!band) return null
   if (r.pin_limit < band.skipBelow) return 'skip'
@@ -180,6 +191,16 @@ export function marketLabel(r) {
     total: 'Total',
   }[r.market_type] ?? r.market_type
   return r.variant && r.variant !== 'main' ? `${base} (${r.variant})` : base
+}
+
+// The market as the bet lists show it: marketLabel plus the period when it is
+// not the whole game, so a first-half model bet does not read as a full-game
+// one. Kept apart from marketLabel, which the split-by table groups on.
+const WHOLE_GAME = new Set(['', 'game', 'match', 'full time', 'fulltime'])
+export function betLabel(r) {
+  const period = String(r.period ?? '').trim().toLowerCase()
+  if (WHOLE_GAME.has(period)) return marketLabel(r)
+  return `${marketLabel(r)}, ${period.charAt(0).toUpperCase()}${period.slice(1)}`
 }
 
 // The same bands, named in American odds.

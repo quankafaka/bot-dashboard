@@ -43,8 +43,23 @@ export function LimitCell({ r }) {
 // which is why it is named. Only the bot records alerts, so hand-logged and
 // BetInAsia-only bets show a dash.
 
+// A model bet has no Pinnacle move behind it: the model is the alert. So the
+// cell shows the model's fair price and the EV it saw instead.
+export function modelNote(r) {
+  const who = r.strategy === 'cfb_model' ? 'CFB model' : 'NFL model'
+  return r.model_ev_pct != null ? `${who}, ${r.model_ev_pct >= 0 ? '+' : ''}${r.model_ev_pct.toFixed(1)}% EV` : who
+}
+
 export default function AlertCell({ r }) {
   const fmt = useOdds()
+  if (r.model_price != null) {
+    return (
+      <td className="nowrap">
+        <div className="alert-move">Fair {fmt(r.model_price)}</div>
+        <div className="sub">{modelNote(r)}</div>
+      </td>
+    )
+  }
   if (r.pin_price_before == null || r.pin_price_after == null) {
     return <td className="muted">—</td>
   }

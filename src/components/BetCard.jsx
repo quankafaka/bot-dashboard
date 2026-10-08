@@ -1,7 +1,7 @@
 import { money, pct, tone, betTime } from '../lib/format'
-import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
+import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
-import { alertLabel } from './AlertCell'
+import { alertLabel, modelNote } from './AlertCell'
 import { limitMoney } from '../lib/format'
 import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
 
@@ -53,13 +53,20 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
         <div className="bc-main">
           <div className="bc-game">{r.home_team} v {r.away_team}</div>
           <div className="bc-bet">
-            {r.selection} <span className="bc-dim">{marketLabel(r)}</span>
+            {r.selection} <span className="bc-dim">{betLabel(r)}</span>
           </div>
         </div>
         {right}
       </div>
       <div className="bc-facts">{facts.join(', ')}</div>
-      {alert && (
+      {r.model_price != null && (
+        <div className="bc-alert">
+          <span className="bc-dim">Model</span>{' '}
+          <span className="alert-move">fair {fmt(r.model_price)}</span>
+          <span className="bc-dim"> ({modelNote(r)})</span>
+        </div>
+      )}
+      {alert && r.model_price == null && (
         <div className="bc-alert">
           <span className="bc-dim">Alert</span>{' '}
           {label && <>{label} </>}

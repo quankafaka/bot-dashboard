@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -66,8 +66,9 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels, limits] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits()])
+      const [w, a, b, labels, limits, models] = await Promise.all([
+        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
+        fetchModelPrices()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
@@ -80,6 +81,13 @@ function Dashboard({ email }) {
         r.pin_limit = l?.limit ?? null
         r.limit_source = l?.source ?? null
         r.limit_tier = l?.tier ?? null
+      }
+      // The NFL / CFB model's fair price and EV on its own bets (migration
+      // 011). Null on every other bet, and on all of them until it has run.
+      for (const r of w) {
+        const m = models?.get(r.wager_id)
+        r.model_price = m?.price ?? null
+        r.model_ev_pct = m?.ev ?? null
       }
       setLabelsReady(labels != null)
       // Only the books this user may see (fetchBooks), so a restricted book's

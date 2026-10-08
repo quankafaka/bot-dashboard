@@ -6,6 +6,29 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-08',
+    title: 'Totals switched off',
+    sections: [
+      {
+        heading: 'What changed',
+        text: 'The bot no longer bets totals (over/under) at all, for now. Every sport, every period.',
+        bullets: [
+          'Covers soccer goal, corner and booking totals, tennis set and game totals, and basketball, baseball, hockey and American football totals, including first-half and first-period markets.',
+          'Pinnacle total alerts are refused before the book is searched, so they will not appear as bets.',
+          'NFL and CFB model bets are spreads only. The model still prices the game, but no 1st-half total is read or placed, paper bets included.',
+          'Spreads and moneylines are unchanged.',
+        ],
+      },
+      {
+        heading: 'Worth knowing',
+        bullets: [
+          'The total rows in the limit rule tables (2026-10-06 and 2026-10-07) do not apply while totals are off.',
+          'This is temporary. The total rules are kept as they were, so turning totals back on restores them unchanged.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-07',
     title: 'Limit rule now covers basketball and hockey',
     sections: [

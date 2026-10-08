@@ -6,6 +6,7 @@ import ProfitChart from './ProfitChart'
 import Filters from './Filters'
 import { useIsMobile } from '../lib/useIsMobile'
 import { Card } from './Daily'
+import Hint from './Hint'
 import BeforeAfter from './BeforeAfter'
 
 export default function Performance({ rows, filters, setFilters, currency, accountNames }) {
@@ -79,8 +80,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
         <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
           sub="Profit over settled handle" />
-        <Card label="Expected yield" value={pct(s.expYield, { digits: 2 })} valueTone={tone(s.expYield)}
-          sub="What the prices were worth" />
+        <Card label={<Hint term="Expected yield" />} value={pct(s.expYield, { digits: 2 })} valueTone={tone(s.expYield)}
+          sub="From the closing line, not the EV at placement" />
       </div>
 
       <section className="panel">
@@ -128,10 +129,10 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
                 <th scope="col" className="num">Actual yield</th>
-                <th scope="col" className="num">Expected yield</th>
-                <th scope="col" className="num">Expected profit</th>
-                <th scope="col" className="num">Avg CLV</th>
-                <th scope="col" className="num">Beat close</th>
+                <th scope="col" className="num"><Hint term="Expected yield" /></th>
+                <th scope="col" className="num"><Hint term="Expected profit" /></th>
+                <th scope="col" className="num"><Hint term="Avg CLV" /></th>
+                <th scope="col" className="num"><Hint term="Beat close" /></th>
               </tr>
             </thead>
             <tbody>
@@ -155,3 +156,4 @@ export default function Performance({ rows, filters, setFilters, currency, accou
     </>
   )
 }
+

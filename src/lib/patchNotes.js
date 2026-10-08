@@ -17,6 +17,7 @@ export const PATCH_NOTES = [
           'Not shown on Mise-o-jeu, where the limit rule never ran. Mise bets also no longer get "Needs +3%" or "Skip band" labels in the Pinnacle limit column; the limit itself still shows.',
           'It splits by market, sport, market by sport, or Pinnacle limit.',
           'Split by has a new "Market by sport" option: each market (Total, Handicap, Moneyline...) with its sports listed under it.',
+          'Expected yield, expected profit, Avg CLV, beat close and CLV change explain themselves when hovered (or tapped on a phone). Expected yield is judged by the closing line, not the EV when the bet was placed.',
         ],
       },
     ],

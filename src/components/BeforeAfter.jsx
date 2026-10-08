@@ -2,6 +2,7 @@ import { Fragment, useMemo, useState } from 'react'
 import { LIMIT_CUTOFF, applyFilters, compareAtCutoff, limitBand } from '../lib/metrics'
 import { dayLabel, pct, tone } from '../lib/format'
 import { useIsMobile } from '../lib/useIsMobile'
+import Hint from './Hint'
 
 // How each side is split. Pinnacle limit only once v_wager_limit has data.
 const SPLITS = [
@@ -59,7 +60,7 @@ export default function BeforeAfter({ rows, filters }) {
       </div>
       <div className="day-fig">
         <div className={`bc-money ${tone(g.clvChange)}`}>{points(g.clvChange)}</div>
-        <div className="sub">CLV change</div>
+        <div className="sub"><Hint term="CLV change" /></div>
       </div>
     </div>
   )
@@ -103,14 +104,14 @@ export default function BeforeAfter({ rows, filters }) {
                 <th scope="col" rowSpan={2}>{splitLabel}</th>
                 <th scope="colgroup" colSpan={4} className="num split-head">Before {dayLabel(cutoff)}</th>
                 <th scope="colgroup" colSpan={4} className="num split-head split-start">From {dayLabel(cutoff)}</th>
-                <th scope="col" rowSpan={2} className="num split-start">CLV change</th>
+                <th scope="col" rowSpan={2} className="num split-start"><Hint term="CLV change" /></th>
               </tr>
               <tr>
                 {['Bets', 'Avg CLV', 'Beat close', 'Expected yield'].map((h) => (
-                  <th key={`b${h}`} scope="col" className="num">{h}</th>
+                  <th key={`b${h}`} scope="col" className="num"><Hint term={h} /></th>
                 ))}
                 {['Bets', 'Avg CLV', 'Beat close', 'Expected yield'].map((h, i) => (
-                  <th key={`a${h}`} scope="col" className={`num ${i === 0 ? 'split-start' : ''}`}>{h}</th>
+                  <th key={`a${h}`} scope="col" className={`num ${i === 0 ? 'split-start' : ''}`}><Hint term={h} /></th>
                 ))}
               </tr>
             </thead>

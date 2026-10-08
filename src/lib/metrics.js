@@ -27,6 +27,7 @@ export function summarize(rows) {
   const open = rows.filter((r) => r.status === 'pending')
   const withClv = graded.filter((r) => r.clv_pct != null)
   const withExp = graded.filter((r) => r.expected_profit != null)
+  const withEvLog = graded.filter((r) => r.ev_pct_log != null)
   const turnover = sum(graded.map((r) => r.stake))
   const profit = sum(graded.map((r) => r.profit ?? 0))
   return {
@@ -37,6 +38,8 @@ export function summarize(rows) {
     avgClv: withClv.length ? sum(withClv.map((r) => r.clv_pct)) / withClv.length : null,
     beatClose: withClv.length ? (withClv.filter((r) => r.clv_pct > 0).length / withClv.length) * 100 : null,
     clvCoverage: graded.length ? withClv.length / graded.length : 0,
+    // The EV pdropper logged when the bet was taken; every bet counts the same.
+    avgEvLog: withEvLog.length ? sum(withEvLog.map((r) => r.ev_pct_log)) / withEvLog.length : null,
     expected: sum(withExp.map((r) => r.expected_profit)),
     expCoverage: graded.length ? withExp.length / graded.length : 0,
     expYield: expYield(withExp),
@@ -140,14 +143,13 @@ export const LIMIT_CUTOFF = '2026-10-06'
 // Settled bets placed before the cutoff day against those placed on or
 // after it (Montreal calendar day, placed_date_local), as summarize() pairs:
 // one for every bet, and one per group of dimId (a DIMENSIONS or
-// NESTED_DIMENSIONS id). clvChange is after minus before, in points.
+// NESTED_DIMENSIONS id).
 export function compareAtCutoff(rows, cutoff, dimId) {
   const graded = rows.filter((r) => r.status === 'graded')
   const pair = (rs) => {
     const before = summarize(rs.filter((r) => r.placed_date_local < cutoff))
     const after = summarize(rs.filter((r) => r.placed_date_local >= cutoff))
-    const clvChange = before.avgClv != null && after.avgClv != null ? after.avgClv - before.avgClv : null
-    return { before, after, clvChange, turnover: before.turnover + after.turnover }
+    return { before, after, turnover: before.turnover + after.turnover }
   }
   const nested = NESTED_DIMENSIONS.find((d) => d.id === dimId)
   const group = (rs, id) => {

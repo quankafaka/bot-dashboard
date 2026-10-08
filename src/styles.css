@@ -346,6 +346,7 @@ th.split-head { text-align: center; color: var(--text); }
 @media (max-width: 700px) {
   .cmp-split { padding: 10px 16px; }
   .cmp-split .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .cmp-split .seg button { white-space: nowrap; }
 }
 
 /* ---- explanations on hover (Hint) -------------------------------------- */

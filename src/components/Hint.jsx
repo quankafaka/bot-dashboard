@@ -12,7 +12,8 @@ export const GLOSSARY = {
   'Avg CLV':
     'Closing line value: how much better the price taken was than the closing price, in percent. Averaged with every bet counting the same, whatever its stake. Expected yield is the same thing weighted by stake.',
   'Beat close': 'The share of bets taken at a better price than the closing price.',
-  'CLV change': 'Average CLV after the cutoff minus average CLV before it, in percentage points.',
+  'EV at log':
+    'The EV pdropper recorded when the bet was logged, averaged with every bet counting the same. Set it next to Avg CLV to see how much of that edge was still there at the close.',
 }
 
 const WIDTH = 300

@@ -152,7 +152,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
       </section>
 
       {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
-      {filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} />}
+      {filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
     </>
   )
 }

@@ -12,12 +12,12 @@ export const PATCH_NOTES = [
       {
         heading: 'On this site',
         bullets: [
-          'BetInAsian only: a new "CLV before and after" panel at the bottom of the Overview compares settled bets placed before 2026-10-06, the day the higher-EV limit rule started, with those placed on or after it: bets, average CLV, beat close and expected yield on each side, and the change in CLV.',
+          'BetInAsian only: a new "CLV before and after" panel at the bottom of the Overview compares settled bets placed before 2026-10-06, the day the higher-EV limit rule started, with those placed on or after it: bets, EV at log, average CLV, beat close, expected yield and profit on each side.',
           'It ignores the period filter so both sides are complete; the account and recorded-by filters still apply.',
           'Not shown on Mise-o-jeu, where the limit rule never ran. Mise bets also no longer get "Needs +3%" or "Skip band" labels in the Pinnacle limit column; the limit itself still shows.',
           'It splits by market, sport, market by sport, or Pinnacle limit.',
           'Split by has a new "Market by sport" option: each market (Total, Handicap, Moneyline...) with its sports listed under it.',
-          'Expected yield, expected profit, Avg CLV, beat close and CLV change explain themselves when hovered (or tapped on a phone). Expected yield is judged by the closing line, not the EV when the bet was placed.',
+          'Expected yield, expected profit, EV at log, Avg CLV and beat close explain themselves when hovered (or tapped on a phone). Expected yield is judged by the closing line, not the EV when the bet was placed.',
         ],
       },
     ],

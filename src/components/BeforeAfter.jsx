@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { LIMIT_CUTOFF, applyFilters, compareAtCutoff, limitBand } from '../lib/metrics'
-import { dayLabel, pct, tone } from '../lib/format'
+import { dayLabel, money, pct, tone } from '../lib/format'
 import { useIsMobile } from '../lib/useIsMobile'
 import Hint from './Hint'
 
@@ -14,14 +14,13 @@ const SPLITS = [
 
 // The site's empty-cell mark, as pct() and money() draw it.
 const EMPTY = pct(null)
-const points = (x) => (x == null ? EMPTY : `${x > 0 ? '+' : ''}${x.toFixed(2)} pts`)
 const beat = (x) => (x == null ? EMPTY : `${x.toFixed(0)}%`)
 
 // Settled bets before the higher-EV limit rule (2026-10-06) against those on
 // or after it. Uses every filter on the page except the period: the point is
 // to compare two stretches of time, and a 7-day window would leave one side
 // empty.
-export default function BeforeAfter({ rows, filters }) {
+export default function BeforeAfter({ rows, filters, currency }) {
   const [split, setSplit] = useState('market')
   const mobile = useIsMobile()
   const hasLimits = rows.some((r) => r.pin_limit != null)
@@ -34,36 +33,37 @@ export default function BeforeAfter({ rows, filters }) {
   // A row keyed by limit band reads better with an empty band named.
   const label = (k) => (shownSplit === 'limit' && k === limitBand(null) ? 'No limit logged' : k)
 
-  const cells = (g) => (
+  // One side's cells; the first opens the side with a rule when `edge`.
+  const sideCells = (s, edge) => (
     <>
-      <td className="num">{g.before.bets || EMPTY}</td>
-      <td className={`num ${tone(g.before.avgClv)}`}>{pct(g.before.avgClv, { digits: 2 })}</td>
-      <td className="num">{beat(g.before.beatClose)}</td>
-      <td className={`num ${tone(g.before.expYield)}`}>{pct(g.before.expYield, { digits: 2 })}</td>
-      <td className="num split-start">{g.after.bets || EMPTY}</td>
-      <td className={`num ${tone(g.after.avgClv)}`}>{pct(g.after.avgClv, { digits: 2 })}</td>
-      <td className="num">{beat(g.after.beatClose)}</td>
-      <td className={`num ${tone(g.after.expYield)}`}>{pct(g.after.expYield, { digits: 2 })}</td>
-      <td className={`num split-start ${tone(g.clvChange)}`}>{points(g.clvChange)}</td>
+      <td className={`num ${edge ? 'split-start' : ''}`}>{s.bets || EMPTY}</td>
+      <td className={`num ${tone(s.avgEvLog)}`}>{pct(s.avgEvLog, { digits: 2 })}</td>
+      <td className={`num ${tone(s.avgClv)}`}>{pct(s.avgClv, { digits: 2 })}</td>
+      <td className="num">{beat(s.beatClose)}</td>
+      <td className={`num ${tone(s.expYield)}`}>{pct(s.expYield, { digits: 2 })}</td>
+      <td className={`num ${tone(s.profit)}`}>{s.bets ? money(s.profit, currency, { sign: true }) : EMPTY}</td>
     </>
   )
+  const cells = (g) => <>{sideCells(g.before, false)}{sideCells(g.after, true)}</>
 
-  const side = (s, word) => (s.bets
-    ? `${word}: ${s.bets} bets, CLV ${pct(s.avgClv, { digits: 2 })}, ${beat(s.beatClose)} beat close`
-    : `${word}: no bets`)
+  const side = (s, word) => (s.bets ? (
+    <>
+      <div className="sub"><strong className={tone(s.profit)}>{word}: {s.bets} {s.bets === 1 ? 'bet' : 'bets'}, {money(s.profit, currency, { sign: true })}</strong></div>
+      <div className="sub">
+        EV {pct(s.avgEvLog, { digits: 2 })}, CLV {pct(s.avgClv, { digits: 2 })}, {beat(s.beatClose)} beat close, exp. {pct(s.expYield, { digits: 2 })}
+      </div>
+    </>
+  ) : <div className="sub">{word}: no bets</div>)
   const card = (g, name, className = '') => (
     <div key={`${className}${g.key ?? name}`} className={`day-row ${className}`}>
       <div>
         <div className="day-name">{name}</div>
-        <div className="sub">{side(g.before, 'Before')}</div>
-        <div className="sub">{side(g.after, 'After')}</div>
-      </div>
-      <div className="day-fig">
-        <div className={`bc-money ${tone(g.clvChange)}`}>{points(g.clvChange)}</div>
-        <div className="sub"><Hint term="CLV change" /></div>
+        {side(g.before, 'Before')}
+        {side(g.after, 'After')}
       </div>
     </div>
   )
+  const HEADS = ['Bets', 'EV at log', 'Avg CLV', 'Beat close', 'Expected yield', 'Profit']
 
   return (
     <section className="panel">
@@ -102,15 +102,14 @@ export default function BeforeAfter({ rows, filters }) {
             <thead>
               <tr>
                 <th scope="col" rowSpan={2}>{splitLabel}</th>
-                <th scope="colgroup" colSpan={4} className="num split-head">Before {dayLabel(cutoff)}</th>
-                <th scope="colgroup" colSpan={4} className="num split-head split-start">From {dayLabel(cutoff)}</th>
-                <th scope="col" rowSpan={2} className="num split-start"><Hint term="CLV change" /></th>
+                <th scope="colgroup" colSpan={HEADS.length} className="num split-head">Before {dayLabel(cutoff)}</th>
+                <th scope="colgroup" colSpan={HEADS.length} className="num split-head split-start">From {dayLabel(cutoff)}</th>
               </tr>
               <tr>
-                {['Bets', 'Avg CLV', 'Beat close', 'Expected yield'].map((h) => (
+                {HEADS.map((h) => (
                   <th key={`b${h}`} scope="col" className="num"><Hint term={h} /></th>
                 ))}
-                {['Bets', 'Avg CLV', 'Beat close', 'Expected yield'].map((h, i) => (
+                {HEADS.map((h, i) => (
                   <th key={`a${h}`} scope="col" className={`num ${i === 0 ? 'split-start' : ''}`}><Hint term={h} /></th>
                 ))}
               </tr>
@@ -131,7 +130,7 @@ export default function BeforeAfter({ rows, filters }) {
                 </Fragment>
               ))}
               {cmp.groups.length === 0 && (
-                <tr><td colSpan={10} className="muted">No settled bets match these filters.</td></tr>
+                <tr><td colSpan={1 + 2 * HEADS.length} className="muted">No settled bets match these filters.</td></tr>
               )}
             </tbody>
             {cmp.groups.length > 0 && (

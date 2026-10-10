@@ -11,8 +11,6 @@ import Daily from './components/Daily'
 import Models from './components/Models'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 
-const REFRESH_MS = 60_000
-
 // The NFL / CFB derivative models only bet on BetInAsian, so their page only
 // exists there.
 const MODEL_BOOK = 'BetInAsian'
@@ -88,10 +86,11 @@ function Dashboard({ email }) {
     }
   }, [])
 
+  // Loads once when the dashboard opens; after that only the Refresh button
+  // reloads. No timer: each reload downloads the full history, which is what
+  // was using up the Supabase egress quota.
   useEffect(() => {
     load()
-    const id = setInterval(load, REFRESH_MS)
-    return () => clearInterval(id)
   }, [load])
 
   const book = books?.find((b) => b.name === filters.book)

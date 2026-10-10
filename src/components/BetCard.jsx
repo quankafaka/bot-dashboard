@@ -1,7 +1,9 @@
-import { money, pct, when, tone } from '../lib/format'
-import { marketLabel, SOURCE_LABEL } from '../lib/metrics'
+import { money, pct, tone, betTime } from '../lib/format'
+import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
-import { alertLabel } from './AlertCell'
+import { alertLabel, modelNote } from './AlertCell'
+import { limitMoney } from '../lib/format'
+import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
 
 const RESULT_LABEL = {
   WIN: 'Won', LOSS: 'Lost', HALF_WIN: 'Half won', HALF_LOSS: 'Half lost', PUSH: 'Push', VOID: 'Void',
@@ -13,9 +15,8 @@ const RESULT_LABEL = {
 //   mode 'pending'  -> stake at risk, EV at log and now
 //   mode 'graded'   -> result and profit, CLV
 //   mode 'ungraded' -> why no result is coming, and the ID for the overrides file
-export default function BetCard({ r, currency, accountNames, mode }) {
+export default function BetCard({ r, currency, accountNames, mode, showAccount = false }) {
   const fmt = useOdds()
-  const account = accountNames[r.account] ?? r.account
   const alert = r.pin_price_before != null && r.pin_price_after != null
   const label = alertLabel(r.alert_selection)
 
@@ -42,6 +43,8 @@ export default function BetCard({ r, currency, accountNames, mode }) {
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     mode !== 'graded' && r.ev_pct_log != null ? `EV ${pct(r.ev_pct_log)}` : null,
     mode === 'pending' && r.current_ev_pct != null ? `now ${pct(r.current_ev_pct)}` : null,
+    r.pin_limit != null ? `Pinnacle limit ${limitMoney(r.pin_limit)}${
+      limitRuleBand(r) === 'higher' ? `, needs +${limitRuleMinEv(r)}%` : ''}` : null,
   ].filter(Boolean)
 
   return (
@@ -50,13 +53,20 @@ export default function BetCard({ r, currency, accountNames, mode }) {
         <div className="bc-main">
           <div className="bc-game">{r.home_team} v {r.away_team}</div>
           <div className="bc-bet">
-            {r.selection} <span className="bc-dim">{marketLabel(r)}</span>
+            {r.selection} <span className="bc-dim">{betLabel(r)}</span>
           </div>
         </div>
         {right}
       </div>
       <div className="bc-facts">{facts.join(', ')}</div>
-      {alert && (
+      {r.model_price != null && (
+        <div className="bc-alert">
+          <span className="bc-dim">Model</span>{' '}
+          <span className="alert-move">fair {fmt(r.model_price)}</span>
+          <span className="bc-dim"> ({modelNote(r)})</span>
+        </div>
+      )}
+      {alert && r.model_price == null && (
         <div className="bc-alert">
           <span className="bc-dim">Alert</span>{' '}
           {label && <>{label} </>}
@@ -65,10 +75,12 @@ export default function BetCard({ r, currency, accountNames, mode }) {
         </div>
       )}
       <div className="bc-meta">
-        {when(mode === 'graded' ? r.placed_at : (r.start_time ?? r.placed_at))}, {r.league}
-        {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}, {account}
+        Placed {betTime(r)}, {r.league}
+        {r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}
+        {showAccount && `, ${accountNames[r.account] ?? r.account}`}
         {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
         {r.is_freebet && <span className="tag">Free bet</span>}
+        {r.limit_tier === 'reduced' && <span className="tag">Reduced stake (old rule)</span>}
       </div>
       {mode === 'ungraded' && (
         <div className="bc-meta">

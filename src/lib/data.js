@@ -87,6 +87,67 @@ export async function fetchStrategies() {
   return labels
 }
 
+// Pinnacle's limit on each bet's market, from v_wager_limit (migration 009):
+// read by the bot for soccer since the limit rule went in, pdropper's logged
+// limit for everything else. Returns null, not an error, until that migration
+// has run -- like fetchStrategies, nothing else on the page depends on it.
+export async function fetchLimits() {
+  const limits = new Map()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_limit')
+      .select('wager_id,pinnacle_limit,limit_source,limit_tier')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      limits.set(r.wager_id, {
+        limit: r.pinnacle_limit == null ? null : Number(r.pinnacle_limit),
+        source: r.limit_source,
+        tier: r.limit_tier,
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return limits
+}
+
+// The NFL / CFB models' own fair price on each bet, from v_wager_model
+// (migration 011): what the model said the bet was worth, and the EV it saw at
+// the price it priced. The bot writes the model's fair price where a steam
+// bet keeps Pinnacle's no-vig one (wagers.csv pinnacle_novig -> fact_wager
+// pin_novig), so this view only hands it out for model bets. Returns null,
+// not an error, until the migration has run.
+export async function fetchModelPrices() {
+  const prices = new Map()
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_model')
+      .select('wager_id,model_price,model_ev_pct')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      prices.set(r.wager_id, {
+        price: r.model_price == null ? null : Number(r.model_price),
+        ev: r.model_ev_pct == null ? null : Number(r.model_ev_pct),
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return prices
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error
@@ -95,13 +156,24 @@ export async function fetchAccounts() {
 
 // The books this user may see, as granted in user_book_access (the database
 // only returns those). Balance columns come from migration 003.
-const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu']
+const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
-export async function fetchBooks() {
+// Books only some people may see. The real gate is user_book_access
+// (migration 010 grants Bet99 to these two); this list only keeps the tab
+// hidden from anyone else should the database ever hand them the book. Adding
+// a person means adding them in BOTH places.
+const RESTRICTED_BOOKS = {
+  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com'],
+}
+const maySee = (name, email) =>
+  !RESTRICTED_BOOKS[name] || RESTRICTED_BOOKS[name].includes(String(email ?? '').toLowerCase())
+
+export async function fetchBooks(email) {
   const { data, error } = await supabase.from('dim_book').select('*')
   if (error) throw error
   return data
+    .filter((b) => maySee(b.name, email))
     .map((b) => ({
       name: b.name,
       currency: b.currency,

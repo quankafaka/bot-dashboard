@@ -27,6 +27,7 @@ export function summarize(rows) {
   const open = rows.filter((r) => r.status === 'pending')
   const withClv = graded.filter((r) => r.clv_pct != null)
   const withExp = graded.filter((r) => r.expected_profit != null)
+  const withEvLog = graded.filter((r) => r.ev_pct_log != null)
   const turnover = sum(graded.map((r) => r.stake))
   const profit = sum(graded.map((r) => r.profit ?? 0))
   return {
@@ -37,6 +38,8 @@ export function summarize(rows) {
     avgClv: withClv.length ? sum(withClv.map((r) => r.clv_pct)) / withClv.length : null,
     beatClose: withClv.length ? (withClv.filter((r) => r.clv_pct > 0).length / withClv.length) * 100 : null,
     clvCoverage: graded.length ? withClv.length / graded.length : 0,
+    // The EV pdropper logged when the bet was taken; every bet counts the same.
+    avgEvLog: withEvLog.length ? sum(withEvLog.map((r) => r.ev_pct_log)) / withEvLog.length : null,
     expected: sum(withExp.map((r) => r.expected_profit)),
     expCoverage: graded.length ? withExp.length / graded.length : 0,
     expYield: expYield(withExp),
@@ -90,6 +93,9 @@ export const DIMENSIONS = [
   { id: 'source', label: 'Recorded by', key: (r) => SOURCE_LABEL[r.source] ?? r.source },
   { id: 'strategy', label: 'System', key: (r) => STRATEGY_LABEL[r.strategy] ?? 'Unattributed' },
   { id: 'odds', label: 'Odds band', key: (r) => oddsBand(r.price_filled) },
+  // Shown once v_wager_limit has data (needsLimits).
+  { id: 'limit', label: 'Pinnacle limit', key: (r) => limitBand(r.pin_limit),
+    order: () => LIMIT_BAND_ORDER, needsLimits: true },
 ]
 
 export function breakdown(rows, dimId) {
@@ -100,9 +106,145 @@ export function breakdown(rows, dimId) {
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k).push(r)
   }
+  const out = [...groups.entries()].map(([key, rs]) => ({ key, ...summarize(rs) }))
+  if (dim.order) {
+    // Bands read in their own order (thin to deep), not by handle.
+    const order = dim.order()
+    const at = (k) => (order.includes(k) ? order.indexOf(k) : order.length)
+    return out.sort((a, b) => at(a.key) - at(b.key))
+  }
+  return out.sort((a, b) => b.turnover - a.turnover)
+}
+
+// Two-level splits: every group of the outer dimension, with its rows split
+// again by the inner one (e.g. Total, then soccer / basketball / hockey).
+export const NESTED_DIMENSIONS = [
+  { id: 'market_sport', label: 'Market by sport', outer: 'market', inner: 'sport' },
+]
+
+export function breakdownNested(rows, outerId, innerId) {
+  const outer = DIMENSIONS.find((d) => d.id === outerId)
+  const groups = new Map()
+  for (const r of rows.filter((x) => x.status === 'graded')) {
+    const k = outer.key(r) ?? '—'
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(r)
+  }
   return [...groups.entries()]
-    .map(([key, rs]) => ({ key, ...summarize(rs) }))
+    .map(([key, rs]) => ({ key, ...summarize(rs), children: breakdown(rs, innerId) }))
     .sort((a, b) => b.turnover - a.turnover)
+}
+
+// ---- before / after a cutoff ----------------------------------------------
+// The day the higher-EV limit rule took over (2026-10-06, see the patch
+// notes). A bet placed ON that day counts as after.
+export const LIMIT_CUTOFF = '2026-10-06'
+
+// Settled bets placed before the cutoff day against those placed on or
+// after it (Montreal calendar day, placed_date_local), as summarize() pairs:
+// one for every bet, and one per group of dimId (a DIMENSIONS or
+// NESTED_DIMENSIONS id).
+export function compareAtCutoff(rows, cutoff, dimId) {
+  const graded = rows.filter((r) => r.status === 'graded')
+  const pair = (rs) => {
+    const before = summarize(rs.filter((r) => r.placed_date_local < cutoff))
+    const after = summarize(rs.filter((r) => r.placed_date_local >= cutoff))
+    return { before, after, turnover: before.turnover + after.turnover }
+  }
+  const nested = NESTED_DIMENSIONS.find((d) => d.id === dimId)
+  const group = (rs, id) => {
+    const dim = DIMENSIONS.find((d) => d.id === id)
+    const m = new Map()
+    for (const r of rs) {
+      const k = dim.key(r) ?? '—'
+      if (!m.has(k)) m.set(k, [])
+      m.get(k).push(r)
+    }
+    const out = [...m.entries()].map(([key, g]) => ({ key, rows: g, ...pair(g) }))
+    if (dim.order) {
+      const order = dim.order()
+      const at = (k) => (order.includes(k) ? order.indexOf(k) : order.length)
+      return out.sort((a, b) => at(a.key) - at(b.key))
+    }
+    return out.sort((a, b) => b.turnover - a.turnover)
+  }
+  const groups = group(graded, nested ? nested.outer : dimId).map(({ rows: g, ...rest }) => (
+    nested ? { ...rest, children: group(g, nested.inner).map(({ rows: _, ...c }) => c) } : rest))
+  return { total: pair(graded), groups }
+}
+
+// ---- the Pinnacle-limit rule (soccer, basketball, hockey) -----------------
+// A mirror of the bot's r_limit_rules.SPORT_BANDS. If one changes, change
+// the other: the bot decides with that table, this one only labels bets.
+// Basketball and hockey use the soccer numbers (since 2026-10-07): spread as
+// Asian handicap, total as goal totals, moneyline as 1X2. Corners and
+// bookings are soccer only.
+//   skipBelow:   limits under it are skipped
+//   minEv:       under a limit of strictBelow, a bet needs this EV (after
+//                commission) instead of the normal floor
+// Every bet the rule lets through gets the full stake (since 2026-10-06; it
+// used to halve the stake at middling limits -- 'reduced' on older bets).
+export const BASE_MIN_EV = 1.0
+export const LIMIT_RULE_BANDS = {
+  ah: { label: 'Asian handicap', skipBelow: 150, minEv: 4.5, strictBelow: 400 },
+  total: { label: 'Goal totals', skipBelow: 200, minEv: 2.5, strictBelow: 400 },
+  ml: { label: '1X2', skipBelow: 300, minEv: 3.0, strictBelow: 500 },
+  corners: { label: 'Corners', skipBelow: 125 },
+  bookings: { label: 'Bookings', skipBelow: 125 },
+}
+
+// The sports the rule covers, as the sync writes them (title case, lowered
+// here) plus the other spellings the bot accepts for hockey.
+const LIMITED_SPORTS = new Set(['soccer', 'basketball', 'hockey', 'ice hockey',
+  'ice-hockey', 'icehockey', 'nhl'])
+// The rule only ever ran on the BetInAsian bot. Mise-o-jeu bets can carry a
+// Pinnacle limit too (pdropper logs one), but the rule never judged them.
+export const LIMIT_RULE_BOOK = 'BetInAsian'
+const isSoccer = (r) => String(r.sport ?? '').trim().toLowerCase() === 'soccer'
+
+export function limitRuleMarket(r) {
+  if (r.variant && r.variant !== 'main') {
+    return isSoccer(r) && LIMIT_RULE_BANDS[r.variant] ? r.variant : null
+  }
+  if (r.market_type === 'spread') return 'ah'
+  if (r.market_type === 'total') return 'total'
+  if (String(r.market_type ?? '').startsWith('moneyline')) return 'ml'
+  return null
+}
+
+// Where the rule puts a bet's limit today: 'skip', 'higher' (needs the
+// band's minEv) or 'normal' (the normal +1% floor). null when the rule says
+// nothing (a sport it does not cover, no limit, no band for the market).
+export function limitRuleBand(r) {
+  if (r.book !== LIMIT_RULE_BOOK) return null
+  if (!LIMITED_SPORTS.has(String(r.sport ?? '').trim().toLowerCase()) || r.pin_limit == null) return null
+  const band = LIMIT_RULE_BANDS[limitRuleMarket(r)]
+  if (!band) return null
+  if (r.pin_limit < band.skipBelow) return 'skip'
+  if (band.minEv != null && r.pin_limit < band.strictBelow) return 'higher'
+  return 'normal'
+}
+
+// The EV the rule asks of this bet at its limit, or null for the normal floor.
+export function limitRuleMinEv(r) {
+  return limitRuleBand(r) === 'higher' ? LIMIT_RULE_BANDS[limitRuleMarket(r)].minEv : null
+}
+
+export const LIMIT_BAND_ORDER = [
+  'Under $150', '$150–199', '$200–299', '$300–399', '$400–499', '$500–999', '$1,000 and up', '—',
+]
+
+// Cut where the rule cuts ($150, $200, $300, $400, $500), so a row here is
+// never half one band, half another.
+export function limitBand(x) {
+  if (x == null) return '—'
+  if (x < 150) return 'Under $150'
+  if (x < 200) return '$150–199'
+  if (x < 300) return '$200–299'
+  if (x < 400) return '$300–399'
+  if (x < 500) return '$400–499'
+  if (x < 1000) return '$500–999'
+  return '$1,000 and up'
 }
 
 export function marketLabel(r) {
@@ -113,6 +255,16 @@ export function marketLabel(r) {
     total: 'Total',
   }[r.market_type] ?? r.market_type
   return r.variant && r.variant !== 'main' ? `${base} (${r.variant})` : base
+}
+
+// The market as the bet lists show it: marketLabel plus the period when it is
+// not the whole game, so a first-half model bet does not read as a full-game
+// one. Kept apart from marketLabel, which the split-by table groups on.
+const WHOLE_GAME = new Set(['', 'game', 'match', 'full time', 'fulltime'])
+export function betLabel(r) {
+  const period = String(r.period ?? '').trim().toLowerCase()
+  if (WHOLE_GAME.has(period)) return marketLabel(r)
+  return `${marketLabel(r)}, ${period.charAt(0).toUpperCase()}${period.slice(1)}`
 }
 
 // The same bands, named in American odds.
@@ -206,3 +358,4 @@ export function accountBalance(rows, book) {
     since,
   }
 }
+

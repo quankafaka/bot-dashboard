@@ -3,6 +3,7 @@ import { ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, Tooltip, Refere
 import { applyFilters, week, localToday, weekStart, addDays } from '../lib/metrics'
 import { money, pct, tone, dayLabel, shortDay, shortDate } from '../lib/format'
 import Filters from './Filters'
+import Hint from './Hint'
 import { useIsMobile } from '../lib/useIsMobile'
 
 export default function Daily({ rows, filters, setFilters, currency, accountNames }) {
@@ -36,8 +37,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
           sub={t.wagers ? `${money(t.handle / t.wagers, currency)} average stake` : 'No wagers'} />
         <Card label="Actual yield" value={pct(t.yield, { digits: 2 })} valueTone={tone(t.yield)}
           sub="Profit over settled handle" />
-        <Card label="Expected yield" value={pct(t.expYield, { digits: 2 })} valueTone={tone(t.expYield)}
-          sub="What the prices were worth" />
+        <Card label={<Hint term="Expected yield" />} value={pct(t.expYield, { digits: 2 })} valueTone={tone(t.expYield)}
+          sub="From the closing line, not the EV at placement" />
       </div>
 
       <section className="panel">
@@ -108,8 +109,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
                 <th scope="col" className="num">Actual yield</th>
-                <th scope="col" className="num">Expected yield</th>
-                <th scope="col" className="num">Expected profit</th>
+                <th scope="col" className="num"><Hint term="Expected yield" /></th>
+                <th scope="col" className="num"><Hint term="Expected profit" /></th>
                 <th scope="col" className="num">Open</th>
               </tr>
             </thead>

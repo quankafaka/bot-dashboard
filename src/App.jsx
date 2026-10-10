@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -9,6 +9,7 @@ import Pending from './components/Pending'
 import Graded from './components/Graded'
 import Daily from './components/Daily'
 import Models from './components/Models'
+import PatchNotes from './components/PatchNotes'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 
 // The NFL / CFB derivative models only bet on BetInAsian, so their page only
@@ -63,15 +64,34 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies()])
+      const [w, a, b, labels, limits, models] = await Promise.all([
+        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
+        fetchModelPrices()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
         r.strategy = labels?.get(r.wager_id) ?? (labels && r.source !== 'bia_order' ? 'steam' : null)
       }
+      // Pinnacle's limit on each bet's market (migration 009). Left undefined
+      // until that migration has run, which hides every limit view.
+      for (const r of w) {
+        const l = limits?.get(r.wager_id)
+        r.pin_limit = l?.limit ?? null
+        r.limit_source = l?.source ?? null
+        r.limit_tier = l?.tier ?? null
+      }
+      // The NFL / CFB model's fair price and EV on its own bets (migration
+      // 011). Null on every other bet, and on all of them until it has run.
+      for (const r of w) {
+        const m = models?.get(r.wager_id)
+        r.model_price = m?.price ?? null
+        r.model_ev_pct = m?.ev ?? null
+      }
       setLabelsReady(labels != null)
-      setRows(w)
+      // Only the books this user may see (fetchBooks), so a restricted book's
+      // bets never sit in memory for anyone else.
+      const allowed = new Set(b.map((x) => x.name))
+      setRows(w.filter((r) => allowed.has(r.book)))
       setAccounts(a)
       setBooks(b)
       // First load, or a book that was taken away: show the first one allowed.
@@ -84,7 +104,7 @@ function Dashboard({ email }) {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [email])
 
   // Loads once when the dashboard opens; after that only the Refresh button
   // reloads. No timer: each reload downloads the full history, which is what
@@ -100,6 +120,10 @@ function Dashboard({ email }) {
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
   const showModels = filters.book === MODEL_BOOK
+  // A book with no bot (Bet99): every bet was logged by hand, so the
+  // 'include bets the bot did not record' switch would only hide all of them.
+  const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')
+  const viewFilters = logOnly ? { ...filters, includeManual: true } : filters
   const view = tab === 'models' && !showModels ? 'performance' : tab
 
   return (
@@ -160,6 +184,7 @@ function Dashboard({ email }) {
           ['pending', 'Pending'],
           ['graded', 'Graded'],
           ...(showModels ? [['models', 'NFL / CFB']] : []),
+          ['notes', <><span className="long">Patch notes</span><span className="short">Notes</span></>],
         ].map(([id, label]) => (
           <button key={id} role="tab" aria-selected={view === id} className={view === id ? 'on' : ''}
             onClick={() => setTab(id)}>
@@ -183,17 +208,18 @@ function Dashboard({ email }) {
       {rows && book && (
         <main>
           {view === 'performance' && (
-            <Performance rows={bookRows} filters={filters} setFilters={setFilters}
+            <Performance rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
           {view === 'daily' && (
-            <Daily rows={bookRows} filters={filters} setFilters={setFilters}
+            <Daily rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
           )}
           {view === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
           {view === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'notes' && <PatchNotes />}
           {view === 'models' && (
-            <Models rows={bookRows} filters={filters} setFilters={setFilters}
+            <Models rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} labelsReady={labelsReady} />
           )}
         </main>

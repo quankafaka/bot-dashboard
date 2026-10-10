@@ -311,3 +311,53 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 @media (max-width: 700px) {
   .pad-cards { padding: 0 16px 16px; grid-template-columns: 1fr; }
 }
+
+/* The note under 'Split by' when a limit view is on. */
+.split-note { margin: 0; padding: 0 20px 12px; max-width: 100ch; font-size: 12px; }
+@media (max-width: 700px) { .split-note { padding: 0 16px 10px; } }
+
+/* ---- patch notes ------------------------------------------------------- */
+.notes-body { padding: 4px 20px 18px; }
+.notes-section { margin-top: 14px; }
+.notes-section h3 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+.notes-section p { margin: 0 0 8px; max-width: 95ch; color: var(--muted); line-height: 1.5; }
+.notes-section ul { margin: 6px 0 0; padding-left: 20px; max-width: 95ch; color: var(--muted); line-height: 1.5; }
+.notes-section li + li { margin-top: 4px; }
+.notes-section .scroll { margin: 6px 0 8px; border: 1px solid var(--border); border-radius: var(--radius); }
+.notes-section table th, .notes-section table td { padding: 8px 12px; }
+.tabs .short { display: none; }
+@media (max-width: 700px) {
+  .notes-body { padding: 2px 16px 16px; }
+  .tabs .long { display: none; }
+  .tabs .short { display: inline; }
+}
+
+/* ---- two-level splits (Market by sport) -------------------------------- */
+tbody tr.group > * { font-weight: 700; background: #0a0a0b; border-top: 1px solid var(--border-strong); }
+tbody tr.child > th { padding-left: 34px; color: var(--muted); font-weight: 400; }
+.day-row.group { background: #0a0a0b; border-top: 1px solid var(--border-strong); }
+.day-row.child { padding-left: 28px; }
+.day-row.child .day-name { font-weight: 400; color: var(--muted); }
+
+/* ---- CLV before and after ---------------------------------------------- */
+.cmp-split { padding: 12px 22px; border-bottom: 1px solid var(--border); }
+th.split-head { text-align: center; color: var(--text); }
+.split-start { border-left: 1px solid var(--border-strong); }
+@media (max-width: 700px) {
+  .cmp-split { padding: 10px 16px; }
+  .cmp-split .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
+  .cmp-split .seg button { white-space: nowrap; }
+}
+
+/* ---- explanations on hover (Hint) -------------------------------------- */
+.hint { text-decoration: underline dotted var(--muted-2); text-underline-offset: 3px; cursor: help; }
+.hint:focus-visible { outline-offset: 1px; }
+.hint-tip {
+  position: fixed; z-index: 50; pointer-events: none;
+  background: var(--raised); border: 1px solid var(--border-strong); border-radius: 6px;
+  padding: 9px 11px; box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  color: var(--text); font: 400 12px/1.5 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  text-align: left; white-space: normal;
+  letter-spacing: 0; text-transform: none;
+}
+.hint-tip.above { transform: translateY(-100%); }

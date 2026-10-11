@@ -330,6 +330,10 @@ function dayStats(rs) {
     profit,
     yield: settledHandle ? (profit / settledHandle) * 100 : null,
     avgClv: withClv.length ? sum(withClv.map((r) => r.clv_pct)) / withClv.length : null,
+    // Share of settled bets with a closing line that were priced better than
+    // it, same rule as summarize(). clvCount is how many that is out of.
+    beatClose: withClv.length ? (withClv.filter((r) => r.clv_pct > 0).length / withClv.length) * 100 : null,
+    clvCount: withClv.length,
     expected: sum(graded.map((r) => r.expected_profit ?? 0)),
     expYield: expYield(graded.filter((r) => r.expected_profit != null)),
   }

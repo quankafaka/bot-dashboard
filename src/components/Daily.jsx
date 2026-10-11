@@ -28,7 +28,7 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
         </div>
       </Filters>
 
-      <div className="cards">
+      <div className="cards wide">
         <Card label="Profit" value={money(t.profit, currency, { sign: true })} valueTone={tone(t.profit)}
           sub={`Expected ${money(t.expected, currency, { sign: true })}`} />
         <Card label="Bets" value={t.wagers.toLocaleString('en-CA')}
@@ -39,6 +39,11 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
           sub="Profit over settled handle" />
         <Card label={<Hint term="Expected yield" />} value={pct(t.expYield, { digits: 2 })} valueTone={tone(t.expYield)}
           sub="From the closing line, not the EV at placement" />
+        <Card label={<Hint term="Avg CLV" />} value={pct(t.avgClv, { digits: 2 })} valueTone={tone(t.avgClv)}
+          sub={t.clvCount ? `Over ${t.clvCount} of ${t.settled} settled bets` : 'No settled bets with a close'} />
+        <Card label={<Hint term="Beat close" />} value={pct(t.beatClose, { digits: 1, sign: false })}
+          valueTone={t.beatClose == null ? '' : tone(t.beatClose - 50)}
+          sub="Share of bets priced better than the close" />
       </div>
 
       <section className="panel">
@@ -84,6 +89,11 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                     <div className="sub">
                       {pct(d.yield)} actual, {pct(d.expYield, { digits: 1 })} exp.
                     </div>
+                    {d.clvCount > 0 && (
+                      <div className="sub">
+                        CLV {pct(d.avgClv, { digits: 1 })}, {pct(d.beatClose, { digits: 0, sign: false })} beat
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -96,6 +106,9 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
               <div className="day-fig">
                 <div className={`bc-money ${tone(t.profit)}`}>{money(t.profit, currency, { sign: true })}</div>
                 <div className="sub">{pct(t.yield)} actual, {pct(t.expYield)} exp.</div>
+                {t.clvCount > 0 && (
+                  <div className="sub">CLV {pct(t.avgClv, { digits: 1 })}, {pct(t.beatClose, { digits: 0, sign: false })} beat</div>
+                )}
               </div>
             </div>
           </div>
@@ -111,6 +124,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                 <th scope="col" className="num">Actual yield</th>
                 <th scope="col" className="num"><Hint term="Expected yield" /></th>
                 <th scope="col" className="num"><Hint term="Expected profit" /></th>
+                <th scope="col" className="num"><Hint term="Avg CLV" /></th>
+                <th scope="col" className="num"><Hint term="Beat close" /></th>
                 <th scope="col" className="num">Open</th>
               </tr>
             </thead>
@@ -119,7 +134,7 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                 <tr key={d.date} className={d.date === today ? 'today' : ''}>
                   <th scope="row">{dayLabel(d.date)}{d.date === today && <span className="tag">Today</span>}</th>
                   {d.date > today ? (
-                    <td colSpan={7} className="muted">Not played yet</td>
+                    <td colSpan={9} className="muted">Not played yet</td>
                   ) : (
                     <>
                       <td className="num">{d.wagers}</td>
@@ -128,6 +143,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                       <td className={`num ${tone(d.yield)}`}>{pct(d.yield)}</td>
                       <td className={`num ${tone(d.expYield)}`}>{pct(d.expYield, { digits: 2 })}</td>
                       <td className="num">{money(d.expected, currency, { sign: true })}</td>
+                      <td className={`num ${tone(d.avgClv)}`}>{pct(d.avgClv, { digits: 2 })}</td>
+                      <td className="num">{pct(d.beatClose, { digits: 1, sign: false })}</td>
                       <td className="num">{d.open || '—'}</td>
                     </>
                   )}
@@ -143,6 +160,8 @@ export default function Daily({ rows, filters, setFilters, currency, accountName
                 <td className={`num ${tone(t.yield)}`}>{pct(t.yield)}</td>
                 <td className={`num ${tone(t.expYield)}`}>{pct(t.expYield, { digits: 2 })}</td>
                 <td className="num">{money(t.expected, currency, { sign: true })}</td>
+                <td className={`num ${tone(t.avgClv)}`}>{pct(t.avgClv, { digits: 2 })}</td>
+                <td className="num">{pct(t.beatClose, { digits: 1, sign: false })}</td>
                 <td className="num">{t.open || '—'}</td>
               </tr>
             </tfoot>

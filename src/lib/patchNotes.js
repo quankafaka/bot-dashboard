@@ -7,6 +7,20 @@
 export const PATCH_NOTES = [
   {
     date: '2026-10-11',
+    title: 'Daily: average CLV and beat close',
+    sections: [
+      {
+        heading: 'On this site',
+        bullets: [
+          'The Daily tab now shows Avg CLV and Beat close for the week, as two new cards, and for each day, as two new columns in the table (on a phone, as a line under each day).',
+          'Same rules as the Overview: settled bets only, and only those with a closing line. The card says how many bets that is.',
+          'They follow the account and recorded-by filters, like the rest of the tab.',
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-11',
     title: 'NFL / CFB model now bets on Mise-o-jeu too',
     sections: [
       {

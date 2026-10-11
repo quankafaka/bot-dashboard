@@ -6,6 +6,28 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-11',
+    title: 'NFL / CFB model now bets on Mise-o-jeu too',
+    sections: [
+      {
+        heading: 'What changed',
+        text: 'The NFL and CFB derivative models that bet on BetInAsian now also bet on Mise-o-jeu, the same way: twelve hours before kickoff, 1st-half spread and 1st-half total, a flat $25 per bet.',
+        bullets: [
+          'Mise-o-jeu has its own NFL / CFB tab, the same as BetInAsian. It shows only the model bets placed on Mise-o-jeu.',
+          'Mise-o-jeu also now takes ordinary Pinnacle alerts on NFL and college 1st-half spreads and totals. Those are steam bets and stay on the Overview, not the model tab.',
+          '1st-half moneylines are still not bet on Mise-o-jeu.',
+        ],
+      },
+      {
+        heading: 'Worth knowing',
+        bullets: [
+          'Model bets on Mise-o-jeu are flat $25 and do not affect how steam bets there are sized.',
+          'In the Alert / model column, a Mise-o-jeu model bet shows the model fair price and the EV it saw, as on BetInAsian.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-08',
     title: 'Overview: CLV before and after, and Market by sport',
     sections: [

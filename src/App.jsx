@@ -12,9 +12,9 @@ import Models from './components/Models'
 import PatchNotes from './components/PatchNotes'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 
-// The NFL / CFB derivative models only bet on BetInAsian, so their page only
-// exists there.
-const MODEL_BOOK = 'BetInAsian'
+// The books the NFL / CFB derivative models bet on. Each book's page shows
+// only its own model bets; the other books have no model and no such page.
+const MODEL_BOOKS = ['BetInAsian', 'Mise-o-jeu']
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still checking
@@ -119,7 +119,7 @@ function Dashboard({ email }) {
   const bal = useMemo(() => accountBalance(bookRows, book), [bookRows, book])
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
-  const showModels = filters.book === MODEL_BOOK
+  const showModels = MODEL_BOOKS.includes(filters.book)
   // A book with no bot (Bet99): every bet was logged by hand, so the
   // 'include bets the bot did not record' switch would only hide all of them.
   const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')

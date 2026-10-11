@@ -6,11 +6,12 @@ import Pending from './Pending'
 import Graded from './Graded'
 import { Card } from './Daily'
 
-// The BetInAsian bets placed by the NFL / CFB derivative models, on their own.
-// The same numbers as the Overview tab (profit, yield, expected yield, the
-// chart, the split-by table), over model bets only -- plus closing-line value,
-// which both model repos say is what the first season should be judged on.
-// The Overview tab still shows everything: it is one account.
+// The bets placed by the NFL / CFB derivative models on the selected book
+// (BetInAsian or Mise-o-jeu), on their own. The same numbers as the Overview
+// tab (profit, yield, expected yield, the chart, the split-by table), over
+// model bets only -- plus closing-line value, which both model repos say is
+// what the first season should be judged on. The Overview tab still shows
+// everything: the model and the steam chaser share each book's accounts.
 const LEAGUES = [
   ['all', 'NFL + CFB'],
   ['nfl_model', 'NFL'],

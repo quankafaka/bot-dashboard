@@ -4,6 +4,8 @@ import { useOdds } from '../lib/odds'
 import { alertLabel, modelNote } from './AlertCell'
 import { limitMoney } from '../lib/format'
 import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
+import { Fragment } from 'react'
+import Hint from './Hint'
 
 const RESULT_LABEL = {
   WIN: 'Won', LOSS: 'Lost', HALF_WIN: 'Half won', HALF_LOSS: 'Half lost', PUSH: 'Push', VOID: 'Void',
@@ -41,8 +43,12 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
     `${money(r.stake, currency)} at ${fmt(r.price_filled)}`,
     r.closing_price != null ? `closed ${fmt(r.closing_price)}` : null,
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
-    mode !== 'graded' && r.ev_pct_log != null ? `EV ${pct(r.ev_pct_log)}` : null,
-    mode === 'pending' && r.current_ev_pct != null ? `now ${pct(r.current_ev_pct)}` : null,
+    // Tap either EV for what it means -- the same explanations as the
+    // Pending table's column headers.
+    mode !== 'graded' && r.ev_pct_log != null
+      ? <Hint term="EV at log, per bet">EV {pct(r.ev_pct_log)}</Hint> : null,
+    mode === 'pending' && r.current_ev_pct != null
+      ? <Hint term="EV now">now {pct(r.current_ev_pct)}</Hint> : null,
     r.pin_limit != null ? `Pinnacle limit ${limitMoney(r.pin_limit)}${
       limitRuleBand(r) === 'higher' ? `, needs +${limitRuleMinEv(r)}%` : ''}` : null,
   ].filter(Boolean)
@@ -58,7 +64,9 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
         </div>
         {right}
       </div>
-      <div className="bc-facts">{facts.join(', ')}</div>
+      <div className="bc-facts">
+        {facts.map((f, i) => <Fragment key={i}>{i > 0 && ', '}{f}</Fragment>)}
+      </div>
       {r.model_price != null && (
         <div className="bc-alert">
           <span className="bc-dim">Model</span>{' '}

@@ -12,7 +12,7 @@ export const PATCH_NOTES = [
       {
         heading: 'On this site',
         bullets: [
-          "Hover over EV at log or EV now in the Pending table (or tap them on a touch screen) for a short explanation.",
+          "On the Pending tab, hover over EV at log or EV now in the table for a short explanation. On a phone, tap the EV figures on each bet card.",
           "EV at log compares the price we got with Pinnacle's no-vig line when pdropper logged the bet. EV now compares it with Pinnacle's current no-vig line, updated at every sync.",
         ],
       },

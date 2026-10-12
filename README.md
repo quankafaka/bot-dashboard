@@ -1,5 +1,5 @@
 # Bot ledger
-
+ 
 Performance dashboard for the BetInAsian and Mise-o-jeu bots. Reads the
 `v\_wager` view and `dim\_account` table from Supabase; `dashboard\_sync.py`
 (separate project) is what fills   them.  

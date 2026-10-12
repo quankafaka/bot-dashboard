@@ -20,6 +20,30 @@ export function applyFilters(rows, f, now = Date.now()) {
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0)
 
+// The NFL / CFB tab's "Model price" switch. Each bet's CLV and expected profit
+// are measured against the model's own fair price (r.model_price, the price it
+// said the bet was worth when it was placed) instead of Pinnacle's closing
+// no-vig price. Everything built on clv_pct and expected_profit -- the cards,
+// the chart, the split table, the graded list -- then follows the switch
+// without a second set of formulas.
+//
+// The same arithmetic as the Pinnacle side (pdropper's CLV): the price taken
+// over the fair price, minus one, before commission; expected profit is stake
+// times that. A bet with no model price gets neither, and is left out of the
+// averages the way a bet with no closing line is. The model price never moves
+// after the bet, so this is the edge the model saw, not a closing-line test,
+// and nearly every bet "beats" it: the bot only bets when it does.
+export function againstModel(rows) {
+  return rows.map((r) => {
+    const fair = r.model_price
+    if (!(fair > 1) || !(r.price_filled > 1)) {
+      return { ...r, clv_pct: null, expected_profit: null }
+    }
+    const clv = (r.price_filled / fair - 1) * 100
+    return { ...r, clv_pct: clv, expected_profit: r.stake * clv / 100 }
+  })
+}
+
 export function summarize(rows) {
   const graded = rows.filter((r) => r.status === 'graded')
   // Open = still waiting on a result. 'unlogged' bets are NOT open: their game
@@ -362,4 +386,3 @@ export function accountBalance(rows, book) {
     since,
   }
 }
-

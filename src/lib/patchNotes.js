@@ -6,6 +6,34 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-12',
+    title: "NFL / CFB: measure against Pinnacle's close or the model price",
+    sections: [
+      {
+        heading: 'On this site',
+        bullets: [
+          "The NFL / CFB tab has a new switch: Pinnacle's close or Model price. It changes what Expected yield, Expected profit, Avg CLV and Beat close are measured against, everywhere on the tab (the cards, the chart, the split table and the CLV column of the graded list).",
+          "Pinnacle's close is what the tab always showed: the price taken against Pinnacle's closing no-vig price.",
+          "Model price measures the price taken against the model's own fair price for the bet, the one it priced when the bet was placed. Same arithmetic, before commission.",
+          "The model price does not move after the bet, so on that side Beat close will sit near 100% (the bot only bets when its price beats the model's), and Avg CLV is the edge the model saw rather than a closing-line test. Set it next to the Pinnacle side to see how much of the model's edge the market agreed with by kickoff.",
+        ],
+      },
+    ],
+  },
+  {
+    date: '2026-10-12',
+    title: 'Pending: what EV at log and EV now mean',
+    sections: [
+      {
+        heading: 'On this site',
+        bullets: [
+          "On the Pending tab, hover over EV at log or EV now in the table for a short explanation. On a phone, tap the EV figures on each bet card.",
+          "EV at log compares the price we got with Pinnacle's no-vig line when pdropper logged the bet. EV now compares it with Pinnacle's current no-vig line, updated at every sync.",
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-11',
     title: 'Daily: average CLV and beat close',
     sections: [

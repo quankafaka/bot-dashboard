@@ -14,6 +14,16 @@ export const GLOSSARY = {
   'Beat close': 'The share of bets taken at a better price than the closing price.',
   'EV at log':
     'The EV pdropper recorded when the bet was logged, averaged with every bet counting the same. Set it next to Avg CLV to see how much of that edge was still there at the close.',
+  // The NFL / CFB tab's "Model price" side: the same four figures, measured
+  // against the model's fair price at the time of the bet.
+  'Expected yield (model)':
+    "What these bets should earn per dollar staked if the model's fair price is right: each bet's stake times its edge over the model price, added up, over the total stake. Before commission.",
+  'Expected profit (model)':
+    "Stake times the edge over the model's fair price, added up: what these bets should have made if the model is right, before luck and before commission.",
+  'Avg CLV (model)':
+    "How much better the price taken was than the model's fair price for that bet, in percent, averaged with every bet counting the same. The model price is fixed when the bet is placed, so this is the edge the model saw, not a closing-line test.",
+  'Beat close (model)':
+    "The share of bets taken at a better price than the model's fair price. Close to 100% by design: the bot only bets when its price beats the model's.",
   // The two per-bet columns on the Pending tab. Both come from pdropper.
   'EV at log, per bet':
     "This bet's EV when pdropper logged it: the price we got, compared with Pinnacle's no-vig line at that moment.",

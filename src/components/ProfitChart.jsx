@@ -1,7 +1,7 @@
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from 'recharts'
 import { money } from '../lib/format'
 
-export default function ProfitChart({ data, currency }) {
+export default function ProfitChart({ data, currency, expectedLabel = 'Expected profit (CLV)' }) {
   if (data.length < 2) {
     return <div className="chart empty">The chart appears once two bets have settled.</div>
   }
@@ -29,7 +29,7 @@ export default function ProfitChart({ data, currency }) {
             formatter={(v) => <span className="legend-text">{v}</span>} />
           <Area type="linear" dataKey="profit" name="Actual profit" stroke="#22c55e" strokeWidth={1.5}
             fill="url(#gActual)" isAnimationActive={false} />
-          <Area type="linear" dataKey="expected" name="Expected profit (CLV)" stroke="#3ddc84" strokeWidth={1.5}
+          <Area type="linear" dataKey="expected" name={expectedLabel} stroke="#3ddc84" strokeWidth={1.5}
             fill="url(#gExpected)" isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>

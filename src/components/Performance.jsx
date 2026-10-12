@@ -9,7 +9,11 @@ import { Card } from './Daily'
 import Hint from './Hint'
 import BeforeAfter from './BeforeAfter'
 
-export default function Performance({ rows, filters, setFilters, currency, accountNames }) {
+// basis: 'pinnacle' (the default, judged by Pinnacle's close) or 'model' (the
+// NFL / CFB tab's switch: rows already carry CLV against the model price, see
+// metrics.againstModel). Only the labels and explanations change here.
+export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle' }) {
+  const term = (t) => (basis === 'model' ? `${t} (model)` : t)
   const [dim, setDim] = useState('sport')
   const mobile = useIsMobile()
   const { format: oddsFormat } = useOddsFormat()
@@ -49,7 +53,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <div className={`bc-money ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</div>
         <div className="sub">{pct(g.roi)} actual, {pct(g.expYield)} exp.</div>
         {g.avgClv != null && (
-          <div className="sub">CLV {pct(g.avgClv)}, {g.beatClose.toFixed(0)}% beat close</div>
+          <div className="sub">CLV {pct(g.avgClv)}, {g.beatClose.toFixed(0)}% beat {basis === 'model' ? 'model' : 'close'}</div>
         )}
       </div>
     </div>
@@ -80,8 +84,9 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
         <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
           sub="Profit over settled handle" />
-        <Card label={<Hint term="Expected yield" />} value={pct(s.expYield, { digits: 2 })} valueTone={tone(s.expYield)}
-          sub="From the closing line, not the EV at placement" />
+        <Card label={<Hint term={term('Expected yield')}>Expected yield</Hint>} value={pct(s.expYield, { digits: 2 })}
+          valueTone={tone(s.expYield)}
+          sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
       </div>
 
       <section className="panel">
@@ -91,7 +96,8 @@ export default function Performance({ rows, filters, setFilters, currency, accou
             <p className="muted">Actual against expected profit, one step per settled bet</p>
           </div>
         </header>
-        <ProfitChart data={series} currency={currency} />
+        <ProfitChart data={series} currency={currency}
+          expectedLabel={basis === 'model' ? 'Expected profit (model price)' : 'Expected profit (CLV)'} />
       </section>
 
       <section className="panel">
@@ -129,10 +135,12 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Profit</th>
                 <th scope="col" className="num">Actual yield</th>
-                <th scope="col" className="num"><Hint term="Expected yield" /></th>
-                <th scope="col" className="num"><Hint term="Expected profit" /></th>
-                <th scope="col" className="num"><Hint term="Avg CLV" /></th>
-                <th scope="col" className="num"><Hint term="Beat close" /></th>
+                <th scope="col" className="num"><Hint term={term('Expected yield')}>Expected yield</Hint></th>
+                <th scope="col" className="num"><Hint term={term('Expected profit')}>Expected profit</Hint></th>
+                <th scope="col" className="num"><Hint term={term('Avg CLV')}>Avg CLV</Hint></th>
+                <th scope="col" className="num">
+                  <Hint term={term('Beat close')}>{basis === 'model' ? 'Beat model' : 'Beat close'}</Hint>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -156,4 +164,3 @@ export default function Performance({ rows, filters, setFilters, currency, accou
     </>
   )
 }
-

@@ -14,9 +14,10 @@ import Hint from './Hint'
 // what the first season should be judged on. The Overview tab still shows
 // everything: the model and the steam chaser share each book's accounts.
 // What the yield, CLV and beat-close figures are measured against.
+// Model price first and by default.
 const BASES = [
-  ['pinnacle', "Pinnacle's close"],
   ['model', 'Model price'],
+  ['pinnacle', "Pinnacle's close"],
 ]
 
 const LEAGUES = [
@@ -28,7 +29,7 @@ const LEAGUES = [
 export default function Models({ rows, filters, setFilters, currency, accountNames, labelsReady }) {
   const [league, setLeague] = useState('all')
   const [list, setList] = useState('graded')
-  const [basis, setBasis] = useState('pinnacle')
+  const [basis, setBasis] = useState('model')
 
   const leagueRows = useMemo(() => rows.filter((r) => MODEL_STRATEGIES.includes(r.strategy)
     && (league === 'all' || r.strategy === league)), [rows, league])
@@ -90,7 +91,7 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
       )}
 
       <Performance rows={modelRows} filters={filters} setFilters={setFilters}
-        currency={currency} accountNames={accountNames} basis={basis} />
+        currency={currency} accountNames={accountNames} basis={basis} showBeforeAfter={false} />
 
       <section className="panel">
         <header className="panel-head">

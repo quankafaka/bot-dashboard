@@ -12,7 +12,9 @@ import BeforeAfter from './BeforeAfter'
 // basis: 'pinnacle' (the default, judged by Pinnacle's close) or 'model' (the
 // NFL / CFB tab's switch: rows already carry CLV against the model price, see
 // metrics.againstModel). Only the labels and explanations change here.
-export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle' }) {
+// showBeforeAfter: the limit-rule before / after panel. Off on the NFL / CFB
+// tab -- the limit rule never applied to model bets.
+export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle', showBeforeAfter = true }) {
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
   const [dim, setDim] = useState('sport')
   const mobile = useIsMobile()
@@ -160,7 +162,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
       </section>
 
       {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
-      {filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
+      {showBeforeAfter && filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
     </>
   )
 }

@@ -14,6 +14,11 @@ export const GLOSSARY = {
   'Beat close': 'The share of bets taken at a better price than the closing price.',
   'EV at log':
     'The EV pdropper recorded when the bet was logged, averaged with every bet counting the same. Set it next to Avg CLV to see how much of that edge was still there at the close.',
+  // The two per-bet columns on the Pending tab. Both come from pdropper.
+  'EV at log, per bet':
+    "This bet's EV when pdropper logged it: the price we got, compared with Pinnacle's no-vig line at that moment.",
+  'EV now':
+    "This bet's EV right now: the price we got, compared with Pinnacle's current no-vig line. Updated at every sync. Higher than EV at log means the line has moved our way since the bet went in.",
 }
 
 const WIDTH = 300

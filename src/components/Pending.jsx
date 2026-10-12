@@ -5,6 +5,7 @@ import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
 import { betLabel } from '../lib/metrics'
+import Hint from './Hint'
 
 // Two lists. PENDING bets are waiting on a result. UNLOGGED bets are not:
 // their game finished long ago and no result is coming -- the bet never
@@ -73,8 +74,8 @@ function BetTable({ rows, currency, accountNames, showAccount, showId = false })
             {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
             <th scope="col" className="num">Odds</th>
             <th scope="col" className="num">Stake</th>
-            <th scope="col" className="num">EV at log</th>
-            {!showId && <th scope="col" className="num">EV now</th>}
+            <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
+            {!showId && <th scope="col" className="num"><Hint term="EV now" /></th>}
             {showAccount && <th scope="col">Account</th>}
             {showId && <th scope="col">ID</th>}
           </tr>

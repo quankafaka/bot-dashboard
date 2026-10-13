@@ -1,7 +1,7 @@
 import { money, pct, tone, betTime } from '../lib/format'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
-import { alertLabel, modelNote } from './AlertCell'
+import { alertLabel, modelNote, DevigMove, hasDevig } from './AlertCell'
 import { limitMoney } from '../lib/format'
 import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
 import { Fragment } from 'react'
@@ -15,7 +15,7 @@ const RESULT_LABEL = {
 // screen: the game and the outcome on top, the bet and the money under it,
 // then the alert and where it came from.
 //   mode 'pending'  -> stake at risk, EV at log and now
-//   mode 'graded'   -> result and profit, CLV, EV at log
+//   mode 'graded'   -> result and profit, CLV
 //   mode 'ungraded' -> why no result is coming, and the ID for the overrides file
 export default function BetCard({ r, currency, accountNames, mode, showAccount = false }) {
   const fmt = useOdds()
@@ -45,7 +45,7 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     // Tap either EV for what it means -- the same explanations as the
     // Pending table's column headers.
-    r.ev_pct_log != null
+    mode !== 'graded' && r.ev_pct_log != null
       ? <Hint term="EV at log, per bet">EV {pct(r.ev_pct_log)}</Hint> : null,
     mode === 'pending' && r.current_ev_pct != null
       ? <Hint term="EV now">now {pct(r.current_ev_pct)}</Hint> : null,
@@ -80,6 +80,12 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
           {label && <>{label} </>}
           <span className="alert-move">{fmt(r.pin_price_before)} → {fmt(r.pin_price_after)}</span>
           {r.pin_drop_pct != null && <span className="bc-dim"> ({r.pin_drop_pct.toFixed(1)}%)</span>}
+        </div>
+      )}
+      {hasDevig(r) && r.model_price == null && (
+        <div className="bc-alert">
+          <span className="bc-dim">De-vig</span>{' '}
+          <DevigMove r={r} />
         </div>
       )}
       <div className="bc-meta">

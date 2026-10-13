@@ -50,6 +50,56 @@ export function modelNote(r) {
   return r.model_ev_pct != null ? `${who}, ${r.model_ev_pct >= 0 ? '+' : ''}${r.model_ev_pct.toFixed(1)}% EV` : who
 }
 
+// How the bot made the fair price behind the bet's EV (migration 012): the
+// de-vig method, and Pinnacle's price on the line taken before the de-vig and
+// the fair price after it. 'pdropper' means the line was not on the Quick
+// look board and pdropper's own EV was used, so there is no 'before'.
+export const DEVIG_LABEL = { logit: 'Logit', power: 'Power', shin: 'Shin', pdropper: 'pdropper' }
+
+// BetInAsian only. The de-vig is the BetInAsian bot's (d_ev_probe); Mise-o-jeu
+// and Bet99 bets never carry it, and this keeps it that way on screen even if
+// one of those bots ever starts writing the same columns.
+export const DEVIG_BOOKS = ['BetInAsian']
+
+export const hasDevig = (r) =>
+  DEVIG_BOOKS.includes(r.book) && Boolean(r.devig_method) && r.devig_price_after != null
+
+export const devigLabel = (method) => DEVIG_LABEL[method] ?? method
+
+// The full story for a tooltip: the market as Pinnacle quoted it, the hold,
+// and pdropper's own no-vig number on the same line for comparison.
+export function devigTitle(r, fmt) {
+  if (!hasDevig(r)) return undefined
+  if (r.devig_method === 'pdropper') {
+    return `Not on the Quick look board: priced with pdropper's own EV, fair ${fmt(r.devig_price_after)}.`
+  }
+  const parts = [
+    r.devig_market_prices ? `Pinnacle ${r.devig_market_prices}` : null,
+    r.devig_hold_pct != null ? `hold ${r.devig_hold_pct.toFixed(1)}%` : null,
+  ].filter(Boolean).join(', ')
+  return `${parts}${parts ? '. ' : ''}De-vigged with ${devigLabel(r.devig_method)} to a fair ${fmt(r.devig_price_after)}.`
+    + (r.devig_pdrop_nvp != null ? ` pdropper's own no-vig: ${fmt(r.devig_pdrop_nvp)}.` : '')
+}
+
+// 'Logit 2.47 → 2.67': before and after the de-vig. Null when the bot did not
+// record one.
+export function DevigMove({ r }) {
+  const fmt = useOdds()
+  if (!hasDevig(r)) return null
+  return (
+    <span title={devigTitle(r, fmt)}>
+      <span className="devig-method">{devigLabel(r.devig_method)}</span>{' '}
+      <span className="alert-move">
+        {r.devig_price_before != null && (
+          <>{fmt(r.devig_price_before)} <span className="arrow" aria-label="de-vigged to">→</span> </>
+        )}
+        {fmt(r.devig_price_after)}
+      </span>
+      <span className="devig-tag"> fair</span>
+    </span>
+  )
+}
+
 export default function AlertCell({ r }) {
   const fmt = useOdds()
   if (r.model_price != null) {
@@ -61,6 +111,13 @@ export default function AlertCell({ r }) {
     )
   }
   if (r.pin_price_before == null || r.pin_price_after == null) {
+    if (hasDevig(r)) {
+      return (
+        <td className="nowrap">
+          <div className="sub"><DevigMove r={r} /></div>
+        </td>
+      )
+    }
     return <td className="muted">—</td>
   }
   const label = alertLabel(r.alert_selection)
@@ -73,6 +130,7 @@ export default function AlertCell({ r }) {
       <div className="sub">
         {label ? `${label} on Pinnacle` : 'Pinnacle'}{drop && `, ${drop}`}
       </div>
+      {hasDevig(r) && <div className="sub"><DevigMove r={r} /></div>}
     </td>
   )
 }

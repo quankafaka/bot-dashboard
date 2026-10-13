@@ -148,23 +148,67 @@ export async function fetchModelPrices() {
   return prices
 }
 
+// How the bot made the fair price behind each bet's EV, from v_wager_devig
+// (migration 012): the de-vig method ('logit', 'power', 'shin', or 'pdropper'
+// when pdropper's own EV was used), Pinnacle's price on the line before the
+// de-vig and the fair price after it. Bot bets from 2026-10-13 on only.
+// Returns null, not an error, until the migration has run.
+export async function fetchDevig() {
+  const devig = new Map()
+  const n = (v) => (v == null ? null : Number(v))
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('v_wager_devig')
+      .select('wager_id,devig_method,devig_price_before,devig_price_after,devig_market_prices,devig_pdrop_nvp,devig_hold_pct')
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      devig.set(r.wager_id, {
+        method: r.devig_method,
+        before: n(r.devig_price_before),
+        after: n(r.devig_price_after),
+        market: r.devig_market_prices,
+        pdropNvp: n(r.devig_pdrop_nvp),
+        hold: n(r.devig_hold_pct),
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return devig
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error
   return Object.fromEntries(data.map((a) => [a.tag, a.description || a.tag]))
 }
 
-// The books this user may see. user_book_access is the only place access is
-// granted: the RLS policy on dim_book returns just the rows granted there, so
-// giving someone a book is one row in that table and nothing in this code.
-// Balance columns come from migration 003.
+// The books this user may see, as granted in user_book_access (the database
+// only returns those). Balance columns come from migration 003.
 const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
-export async function fetchBooks() {
+// Books only some people may see. The real gate is user_book_access
+// (migration 010 grants Bet99 to these two); this list only keeps the tab
+// hidden from anyone else should the database ever hand them the book. Adding
+// a person means adding them in BOTH places.
+const RESTRICTED_BOOKS = {
+  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com'],
+}
+const maySee = (name, email) =>
+  !RESTRICTED_BOOKS[name] || RESTRICTED_BOOKS[name].includes(String(email ?? '').toLowerCase())
+
+export async function fetchBooks(email) {
   const { data, error } = await supabase.from('dim_book').select('*')
   if (error) throw error
   return data
+    .filter((b) => maySee(b.name, email))
     .map((b) => ({
       name: b.name,
       currency: b.currency,

@@ -162,6 +162,10 @@ tr.today > * { background: var(--today); }
 .after { margin-top: 36px; }
 .alert-move { font-family: var(--mono); font-size: 13px; }
 .alert-move .arrow { color: var(--muted-2); }
+/* The de-vig line under an alert (migration 012): method, then before -> after. */
+.devig-method { font-weight: 600; color: var(--muted); }
+.devig-tag { color: var(--muted-2); }
+.sub .alert-move { font-size: 12px; }
 .lede code { font-family: var(--mono); font-size: 12px; background: var(--raised); padding: 1px 5px; border-radius: 4px; }
 .after h2 { margin-bottom: 6px; }
 .lede { margin: 0 0 12px; max-width: 90ch; color: var(--muted); }

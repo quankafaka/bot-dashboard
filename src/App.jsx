@@ -1,6 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -11,6 +11,7 @@ import Daily from './components/Daily'
 import Models from './components/Models'
 import PatchNotes from './components/PatchNotes'
 import { OddsProvider, useOddsFormat } from './lib/odds'
+import { DEVIG_BOOKS } from './components/AlertCell'
 
 // The books the NFL / CFB derivative models bet on. Each book's page shows
 // only its own model bets; the other books have no model and no such page.
@@ -88,9 +89,9 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels, limits, models] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
-        fetchModelPrices()])
+      const [w, a, b, labels, limits, models, devig] = await Promise.all([
+        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
+        fetchModelPrices(), fetchDevig()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
@@ -110,6 +111,19 @@ function Dashboard({ email }) {
         const m = models?.get(r.wager_id)
         r.model_price = m?.price ?? null
         r.model_ev_pct = m?.ev ?? null
+      }
+      // How the bot made the fair price behind each bet's EV (migration 012):
+      // the de-vig method and Pinnacle's price before and after it. Null on
+      // older bets, hand-logged ones, and on all of them until it has run.
+      // BetInAsian bets only (DEVIG_BOOKS): every other book's stay null.
+      for (const r of w) {
+        const d = DEVIG_BOOKS.includes(r.book) ? devig?.get(r.wager_id) : null
+        r.devig_method = d?.method ?? null
+        r.devig_price_before = d?.before ?? null
+        r.devig_price_after = d?.after ?? null
+        r.devig_market_prices = d?.market ?? null
+        r.devig_pdrop_nvp = d?.pdropNvp ?? null
+        r.devig_hold_pct = d?.hold ?? null
       }
       setLabelsReady(labels != null)
       // Only the books this user may see (fetchBooks), so a restricted book's

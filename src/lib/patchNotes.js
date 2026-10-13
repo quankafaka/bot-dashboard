@@ -6,6 +6,38 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-13',
+    title: 'BetInAsian: the bot now de-vigs Pinnacle itself, with the method that fits the market',
+    sections: [
+      {
+        heading: 'What changed',
+        text: "Until now the EV behind every BetInAsian bet was pdropper's own, and pdropper removes the vig the same way (the power method) on every market. The bot now reads Pinnacle's current prices on both sides of the line it is about to bet, from the alert's Quick look, and removes the vig itself.",
+        table: {
+          head: ['Market', 'Method'],
+          rows: [
+            ['Spreads (handicaps)', 'Logit'],
+            ['Totals', 'Logit'],
+            ['2-way moneyline', 'Power'],
+            ['3-way moneyline (1X2)', 'Shin'],
+          ],
+        },
+        bullets: [
+          "Logit is the method that fit Pinnacle's soccer closing lines best on spreads and totals; power and Shin did best on moneylines.",
+          "When a line is not on the Quick look, the bot still uses pdropper's own EV for it, and the bet is marked pdropper.",
+        ],
+      },
+      {
+        heading: 'On this site',
+        bullets: [
+          "Under the alert on Pending and Graded, and on the phone cards, a new line shows the method and the price before and after: for example Logit 2.47 → 2.67 fair. The first number is Pinnacle's price on the line we bet, with the vig; the second is the fair price the EV was measured against.",
+          "On a computer, hover over that line for the whole market as Pinnacle quoted it, the hold, and pdropper's own no-vig price on the same line for comparison.",
+          'BetInAsian only. Mise-o-jeu and Bet99 bets are unchanged and show no de-vig line.',
+          'Bets placed before today have no de-vig line.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-12',
     title: "NFL / CFB: measure against Pinnacle's close or the model price",
     sections: [

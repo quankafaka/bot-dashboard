@@ -16,6 +16,8 @@ import BeforeAfter from './BeforeAfter'
 // tab -- the limit rule never applied to model bets.
 export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle', showBeforeAfter = true }) {
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
+  // Avg CLV is always Pinnacle's close; only the beat column follows the switch.
+  const beatOf = (g) => (basis === 'model' ? g.beatModel : g.beatClose)
   const [dim, setDim] = useState('sport')
   const mobile = useIsMobile()
   const { format: oddsFormat } = useOddsFormat()
@@ -55,7 +57,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <div className={`bc-money ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</div>
         <div className="sub">{pct(g.roi)} actual, {pct(g.expYield)} exp.</div>
         {g.avgClv != null && (
-          <div className="sub">CLV {pct(g.avgClv)}, {g.beatClose.toFixed(0)}% beat {basis === 'model' ? 'model' : 'close'}</div>
+          <div className="sub">CLV {pct(g.avgClv)}, {beatOf(g) == null ? '—' : `${beatOf(g).toFixed(0)}%`} beat {basis === 'model' ? 'model' : 'close'}</div>
         )}
       </div>
     </div>
@@ -70,7 +72,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
       <td className={`num ${tone(g.expYield)}`}>{pct(g.expYield, { digits: 2 })}</td>
       <td className="num">{money(g.expected, currency, { sign: true })}</td>
       <td className={`num ${tone(g.avgClv)}`}>{pct(g.avgClv, { digits: 2 })}</td>
-      <td className="num">{g.beatClose == null ? '—' : `${g.beatClose.toFixed(0)}%`}</td>
+      <td className="num">{beatOf(g) == null ? '—' : `${beatOf(g).toFixed(0)}%`}</td>
     </tr>
   )
 
@@ -139,7 +141,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
                 <th scope="col" className="num">Actual yield</th>
                 <th scope="col" className="num"><Hint term={term('Expected yield')}>Expected yield</Hint></th>
                 <th scope="col" className="num"><Hint term={term('Expected profit')}>Expected profit</Hint></th>
-                <th scope="col" className="num"><Hint term={term('Avg CLV')}>Avg CLV</Hint></th>
+                <th scope="col" className="num"><Hint term="Avg CLV">Avg CLV</Hint></th>
                 <th scope="col" className="num">
                   <Hint term={term('Beat close')}>{basis === 'model' ? 'Beat model' : 'Beat close'}</Hint>
                 </th>

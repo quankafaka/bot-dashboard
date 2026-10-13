@@ -1,170 +1,108 @@
-import { Fragment, useMemo, useState } from 'react'
-import { DIMENSIONS, NESTED_DIMENSIONS, LIMIT_RULE_BOOK, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
-import { useOddsFormat } from '../lib/odds'
-import { money, pct, tone } from '../lib/format'
-import ProfitChart from './ProfitChart'
-import Filters from './Filters'
-import { useIsMobile } from '../lib/useIsMobile'
-import { Card } from './Daily'
+import { useMemo, useState } from 'react'
+import { money, pct, tone, betTime, multiAccount, when, bookZone } from '../lib/format'
+import { useOdds } from '../lib/odds'
+import AlertCell, { LimitCell, hasLimits } from './AlertCell'
+import BetCard from './BetCard'
 import Hint from './Hint'
-import BeforeAfter from './BeforeAfter'
+import { useIsMobile } from '../lib/useIsMobile'
+import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
-// basis: 'pinnacle' (the default, judged by Pinnacle's close) or 'model' (the
-// NFL / CFB tab's switch: rows already carry CLV against the model price, see
-// metrics.againstModel). Only the labels and explanations change here.
-// showBeforeAfter: the limit-rule before / after panel. Off on the NFL / CFB
-// tab -- the limit rule never applied to model bets.
-export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle', showBeforeAfter = true }) {
-  const term = (t) => (basis === 'model' ? `${t} (model)` : t)
-  // Avg CLV is always Pinnacle's close; only the beat column follows the switch.
-  const beatOf = (g) => (basis === 'model' ? g.beatModel : g.beatClose)
-  const [dim, setDim] = useState('sport')
+const PAGE = 100
+
+// The open bets: still waiting on a result. Newest placed first (patch notes
+// 2026-10-05), with the stake at risk and the EV at log next to the EV now.
+export default function Pending({ rows, currency, accountNames }) {
+  const [q, setQ] = useState('')
+  const fmt = useOdds()
+  const [shown, setShown] = useState(PAGE)
   const mobile = useIsMobile()
-  const { format: oddsFormat } = useOddsFormat()
-  const nested = NESTED_DIMENSIONS.find((d) => d.id === dim)
-  const rowLabel = (key, d = dim) => {
-    if (d === 'account') return accountNames[key] ?? key
-    if (dim === 'odds' && oddsFormat === 'american') return ODDS_BAND_AMERICAN[key] ?? key
-    return key
-  }
-  // Before `table`, which uses shownDim. The limit splits only once v_wager_limit (migration 009) has data.
-  const hasLimits = rows.some((r) => r.pin_limit != null)
-  const limitView = dim === 'limit'
-  const shownDim = (!hasLimits && limitView) ? 'sport' : dim
-  const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
-  const s = useMemo(() => summarize(filtered), [filtered])
-  const series = useMemo(() => cumulative(filtered), [filtered])
-  // A nested split (Market by sport): each market, then its sports.
-  const table = useMemo(() => (nested ? breakdownNested(filtered, nested.outer, nested.inner)
-    : breakdown(filtered, shownDim)), [filtered, shownDim, nested])
-  const multiAccount = new Set(rows.map((r) => r.account)).size > 1
-  // 'System' only means something once more than one system has bets here.
-  const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
-  const luck = s.profit - s.expected
-  // The split buttons, with each two-level split right after its outer one.
-  const splitOptions = DIMENSIONS.filter((d) => (d.id !== 'account' || multiAccount)
-    && (d.id !== 'strategy' || multiSystem)
-    && (!d.needsLimits || hasLimits))
-    .flatMap((d) => [d, ...NESTED_DIMENSIONS.filter((n) => n.outer === d.id)])
-  const innerLabel = (key) => rowLabel(key, nested?.inner)
-  const groupRow = (g, label, className = '') => (
-    <div key={`${className}${g.key}`} className={`day-row ${className}`}>
-      <div>
-        <div className="day-name">{label}</div>
-        <div className="sub">{g.bets} bets, {money(g.turnover, currency)} handle</div>
-      </div>
-      <div className="day-fig">
-        <div className={`bc-money ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</div>
-        <div className="sub">{pct(g.roi)} actual, {pct(g.expYield)} exp.</div>
-        {g.avgClv != null && (
-          <div className="sub">CLV {pct(g.avgClv)}, {beatOf(g) == null ? '—' : `${beatOf(g).toFixed(0)}%`} beat {basis === 'model' ? 'model' : 'close'}</div>
-        )}
-      </div>
-    </div>
-  )
-  const tableRow = (g, label, className = '') => (
-    <tr key={`${className}${g.key}`} className={className}>
-      <th scope="row">{label}</th>
-      <td className="num">{g.bets}</td>
-      <td className="num">{money(g.turnover, currency)}</td>
-      <td className={`num ${tone(g.profit)}`}>{money(g.profit, currency, { sign: true })}</td>
-      <td className={`num ${tone(g.roi)}`}>{pct(g.roi)}</td>
-      <td className={`num ${tone(g.expYield)}`}>{pct(g.expYield, { digits: 2 })}</td>
-      <td className="num">{money(g.expected, currency, { sign: true })}</td>
-      <td className={`num ${tone(g.avgClv)}`}>{pct(g.avgClv, { digits: 2 })}</td>
-      <td className="num">{beatOf(g) == null ? '—' : `${beatOf(g).toFixed(0)}%`}</td>
-    </tr>
-  )
+
+  const showLimit = hasLimits(rows)
+  const showAccount = multiAccount(rows)
+  const open = useMemo(() => rows.filter((r) => r.status === 'pending'), [rows])
+  const pending = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    return open
+      .filter((r) => !needle || `${r.home_team} ${r.away_team} ${r.league} ${r.selection}`.toLowerCase().includes(needle))
+      .sort((a, b) => b.placedMs - a.placedMs)
+  }, [open, q])
+  const atRisk = pending.reduce((t, r) => t + (r.stake ?? 0), 0)
+  const empty = open.length === 0 ? 'No open bets right now.' : `No open bets match “${q}”.`
 
   return (
-    <>
-      <Filters rows={rows} filters={filters} setFilters={setFilters} accountNames={accountNames} />
-
-      <div className="cards">
-        <Card label="Profit" value={money(s.profit, currency, { sign: true })} valueTone={tone(s.profit)}
-          sub={s.bets ? `${money(Math.abs(luck), currency)} ${luck >= 0 ? 'above' : 'below'} expected` : 'No settled bets'} />
-        <Card label="Bets" value={s.bets.toLocaleString('en-CA')}
-          sub={`${s.openCount} open, ${money(s.openStake, currency)} at risk`} />
-        <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
-        <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
-          sub="Profit over settled handle" />
-        <Card label={<Hint term={term('Expected yield')}>Expected yield</Hint>} value={pct(s.expYield, { digits: 2 })}
-          valueTone={tone(s.expYield)}
-          sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
+    <section>
+      <div className="search">
+        <label htmlFor="q-pending">Find a bet</label>
+        <input id="q-pending" type="search" placeholder="Team, league or selection" value={q}
+          onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} />
+        <span className="muted">
+          {pending.length.toLocaleString('en-CA')} open, {money(atRisk, currency)} at risk
+        </span>
       </div>
-
-      <section className="panel">
-        <header className="panel-head">
-          <div>
-            <h2>Profit and bets</h2>
-            <p className="muted">Actual against expected profit, one step per settled bet</p>
-          </div>
-        </header>
-        <ProfitChart data={series} currency={currency}
-          expectedLabel={basis === 'model' ? 'Expected profit (model price)' : 'Expected profit (CLV)'} />
-      </section>
-
-      <section className="panel">
-        <header className="panel-head">
-          <h2>Split by</h2>
-          <div className="seg" role="group" aria-label="Split by">
-            {splitOptions.map((d) => (
-              <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
-                onClick={() => setDim(d.id)}>{d.label}</button>
-            ))}
-          </div>
-        </header>
-        {hasLimits && limitView && (
-          <p className="muted split-note">
-            Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest.
-          </p>
-        )}
-        {mobile ? (
-          <div className="day-list">
-            {table.map((g) => (nested ? (
-              <Fragment key={g.key}>
-                {groupRow(g, g.key, 'group')}
-                {g.children.map((c) => groupRow(c, innerLabel(c.key), 'child'))}
-              </Fragment>
-            ) : groupRow(g, rowLabel(g.key))))}
-            {table.length === 0 && <p className="muted pad-s">No settled bets match these filters.</p>}
-          </div>
-        ) : (
-        <div className="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">{splitOptions.find((d) => d.id === shownDim)?.label ?? 'Group'}</th>
-                <th scope="col" className="num">Bets</th>
-                <th scope="col" className="num">Handle</th>
-                <th scope="col" className="num">Profit</th>
-                <th scope="col" className="num">Actual yield</th>
-                <th scope="col" className="num"><Hint term={term('Expected yield')}>Expected yield</Hint></th>
-                <th scope="col" className="num"><Hint term={term('Expected profit')}>Expected profit</Hint></th>
-                <th scope="col" className="num"><Hint term="Avg CLV">Avg CLV</Hint></th>
-                <th scope="col" className="num">
-                  <Hint term={term('Beat close')}>{basis === 'model' ? 'Beat model' : 'Beat close'}</Hint>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {table.map((g) => (nested ? (
-                <Fragment key={g.key}>
-                  {tableRow(g, g.key, 'group')}
-                  {g.children.map((c) => tableRow(c, innerLabel(c.key), 'child'))}
-                </Fragment>
-              ) : tableRow(g, rowLabel(g.key))))}
-              {table.length === 0 && (
-                <tr><td colSpan={9} className="muted">No settled bets match these filters.</td></tr>
-              )}
-            </tbody>
-          </table>
+      {mobile ? (
+        <div className="cards-list">
+          {pending.slice(0, shown).map((r) => (
+            <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
+              showAccount={showAccount} mode="pending" />
+          ))}
+          {pending.length === 0 && <p className="muted">{empty}</p>}
         </div>
-        )}
-      </section>
-
-      {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
-      {showBeforeAfter && filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
-    </>
+      ) : (
+      <div className="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Placed</th>
+              <th scope="col">Game</th>
+              <th scope="col">Bet</th>
+              <th scope="col">Alert / model</th>
+              {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
+              <th scope="col" className="num">Odds</th>
+              <th scope="col" className="num">At risk</th>
+              <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
+              <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>
+              {showAccount && <th scope="col">Account</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {pending.slice(0, shown).map((r) => (
+              <tr key={r.wager_id}>
+                <td className="nowrap">{betTime(r)}</td>
+                <td>
+                  <div>{r.home_team} v {r.away_team}</div>
+                  <div className="sub">
+                    {r.league}{r.start_time && `, starts ${when(r.start_time, bookZone(r.book))}`}
+                  </div>
+                </td>
+                <td>
+                  <div>{r.selection}</div>
+                  <div className="sub">
+                    {betLabel(r)}
+                    {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
+                    {r.is_freebet && <span className="tag">Free bet</span>}
+                  </div>
+                </td>
+                <AlertCell r={r} />
+                {showLimit && <LimitCell r={r} />}
+                <td className="num">{fmt(r.price_filled)}</td>
+                <td className="num">{money(r.stake, currency)}</td>
+                <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
+                <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>
+                {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
+              </tr>
+            ))}
+            {pending.length === 0 && (
+              <tr><td colSpan={8 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      )}
+      {pending.length > shown && (
+        <button className="more" onClick={() => setShown((n) => n + PAGE)}>
+          Show {Math.min(PAGE, pending.length - shown)} more
+        </button>
+      )}
+    </section>
   )
 }

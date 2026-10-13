@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Component, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
 import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices } from './lib/data'
 import { accountBalance } from './lib/metrics'
@@ -34,6 +34,30 @@ export default function App() {
       <Dashboard email={session.user.email} />
     </OddsProvider>
   )
+}
+
+// A crash inside one tab shows a message in that tab instead of unmounting
+// the whole page (which leaves a blank screen). Keyed by tab, so switching
+// tabs gives the boundary a fresh start.
+class TabBoundary extends Component {
+  state = { error: null }
+
+  static getDerivedStateFromError(error) {
+    return { error }
+  }
+
+  componentDidCatch(error, info) {
+    console.error(error, info.componentStack)
+  }
+
+  render() {
+    if (!this.state.error) return this.props.children
+    return (
+      <p className="error">
+        This tab hit an error: {this.state.error.message || String(this.state.error)}. Try another tab or press Refresh.
+      </p>
+    )
+  }
 }
 
 function OddsToggle() {
@@ -207,6 +231,7 @@ function Dashboard({ email }) {
 
       {rows && book && (
         <main>
+          <TabBoundary key={`${view}:${filters.book}`}>
           {view === 'performance' && (
             <Performance rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} />
@@ -222,6 +247,7 @@ function Dashboard({ email }) {
             <Models rows={bookRows} filters={viewFilters} setFilters={setFilters}
               currency={book.currency} accountNames={accounts} labelsReady={labelsReady} />
           )}
+          </TabBoundary>
         </main>
       )}
     </div>

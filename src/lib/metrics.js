@@ -20,27 +20,27 @@ export function applyFilters(rows, f, now = Date.now()) {
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0)
 
-// The NFL / CFB tab's "Model price" switch. Each bet's CLV and expected profit
-// are measured against the model's own fair price (r.model_price, the price it
+// The NFL / CFB tab's "Model price" switch. Each bet's expected profit is
+// measured against the model's own fair price (r.model_price, the price it
 // said the bet was worth when it was placed) instead of Pinnacle's closing
-// no-vig price. Everything built on clv_pct and expected_profit -- the cards,
-// the chart, the split table, the graded list -- then follows the switch
-// without a second set of formulas.
+// no-vig price, and model_edge_pct records the price taken against that fair
+// price (what "Beat the model" counts). CLV (clv_pct) is left alone: it is
+// always Pinnacle's close, on both sides of the switch.
 //
 // The same arithmetic as the Pinnacle side (pdropper's CLV): the price taken
 // over the fair price, minus one, before commission; expected profit is stake
 // times that. A bet with no model price gets neither, and is left out of the
-// averages the way a bet with no closing line is. The model price never moves
-// after the bet, so this is the edge the model saw, not a closing-line test,
-// and nearly every bet "beats" it: the bot only bets when it does.
+// expected figures the way a bet with no closing line is. The model price
+// never moves after the bet, so nearly every bet "beats" it: the bot only
+// bets when it does.
 export function againstModel(rows) {
   return rows.map((r) => {
     const fair = r.model_price
     if (!(fair > 1) || !(r.price_filled > 1)) {
-      return { ...r, clv_pct: null, expected_profit: null }
+      return { ...r, model_edge_pct: null, expected_profit: null }
     }
-    const clv = (r.price_filled / fair - 1) * 100
-    return { ...r, clv_pct: clv, expected_profit: r.stake * clv / 100 }
+    const edge = (r.price_filled / fair - 1) * 100
+    return { ...r, model_edge_pct: edge, expected_profit: r.stake * edge / 100 }
   })
 }
 
@@ -52,6 +52,8 @@ export function summarize(rows) {
   const withClv = graded.filter((r) => r.clv_pct != null)
   const withExp = graded.filter((r) => r.expected_profit != null)
   const withEvLog = graded.filter((r) => r.ev_pct_log != null)
+  // Only set on the NFL / CFB tab's Model price side (againstModel).
+  const withEdge = graded.filter((r) => r.model_edge_pct != null)
   const turnover = sum(graded.map((r) => r.stake))
   const profit = sum(graded.map((r) => r.profit ?? 0))
   return {
@@ -62,6 +64,7 @@ export function summarize(rows) {
     avgClv: withClv.length ? sum(withClv.map((r) => r.clv_pct)) / withClv.length : null,
     beatClose: withClv.length ? (withClv.filter((r) => r.clv_pct > 0).length / withClv.length) * 100 : null,
     clvCoverage: graded.length ? withClv.length / graded.length : 0,
+    beatModel: withEdge.length ? (withEdge.filter((r) => r.model_edge_pct > 0).length / withEdge.length) * 100 : null,
     // The EV pdropper logged when the bet was taken; every bet counts the same.
     avgEvLog: withEvLog.length ? sum(withEvLog.map((r) => r.ev_pct_log)) / withEvLog.length : null,
     expected: sum(withExp.map((r) => r.expected_profit)),

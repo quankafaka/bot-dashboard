@@ -37,10 +37,9 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
   // the model's fair price instead; everything below reads them from the rows.
   const modelRows = useMemo(() => (basis === 'model' ? againstModel(leagueRows) : leagueRows),
     [leagueRows, basis])
+  // CLV in s is always Pinnacle's close; againstModel only moves expected
+  // profit and adds the edge over the model price (s.beatModel).
   const s = useMemo(() => summarize(applyFilters(modelRows, filters)), [modelRows, filters])
-  // Average CLV stays on Pinnacle's close whichever side the switch is on:
-  // against the model price it is only the edge the model saw at placement.
-  const pin = useMemo(() => summarize(applyFilters(leagueRows, filters)), [leagueRows, filters])
   const priced = leagueRows.some((r) => r.model_price != null)
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
 
@@ -99,23 +98,24 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
       <section className="panel">
         <header className="panel-head">
           <div>
-            <h2>{basis === 'model' ? 'Value against the model price' : 'Closing-line value'}</h2>
+            <h2>Closing-line value</h2>
             <p className="muted">
               {basis === 'model'
-                ? "How much better the price taken was than the model's fair price for the bet. The model price is fixed when the bet is placed, so this is the edge the model saw, not a closing-line test."
+                ? "Average CLV is against Pinnacle's close on both sides of the switch. Beat the model is the share of bets priced better than the model's fair price, which is fixed when the bet is placed."
                 : 'Whether the price taken beat the closing price. A few hundred bets in, this says more about the edge than profit does.'}
             </p>
           </div>
         </header>
         <div className="cards pad-cards">
-          <Card label={<Hint term="Avg CLV">Average CLV</Hint>} value={pct(pin.avgClv, { digits: 2 })}
-            valueTone={tone(pin.avgClv)}
-            sub={pin.bets
-              ? `Against Pinnacle's close, over ${Math.round(pin.clvCoverage * pin.bets)} of ${pin.bets} settled bets`
+          <Card label={<Hint term="Avg CLV">Average CLV</Hint>} value={pct(s.avgClv, { digits: 2 })}
+            valueTone={tone(s.avgClv)}
+            sub={s.bets
+              ? `Against Pinnacle's close, over ${Math.round(s.clvCoverage * s.bets)} of ${s.bets} settled bets`
               : 'No settled bets'} />
           <Card label={<Hint term={term('Beat close')}>{basis === 'model' ? 'Beat the model' : 'Beat the close'}</Hint>}
-            value={pct(s.beatClose, { digits: 1 })}
-            valueTone={s.beatClose == null ? '' : tone(s.beatClose - 50)}
+            value={pct(basis === 'model' ? s.beatModel : s.beatClose, { digits: 1 })}
+            valueTone={(basis === 'model' ? s.beatModel : s.beatClose) == null ? ''
+              : tone((basis === 'model' ? s.beatModel : s.beatClose) - 50)}
             sub={basis === 'model' ? "Share of bets priced better than the model's fair price" : 'Share of bets priced better than the close'} />
           <Card label="Open" value={s.openCount.toLocaleString('en-CA')}
             sub="Waiting on a result" />

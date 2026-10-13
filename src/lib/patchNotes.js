@@ -12,11 +12,11 @@ export const PATCH_NOTES = [
       {
         heading: 'On this site',
         bullets: [
-          "The NFL / CFB tab has a new switch: Model price or Pinnacle's close. Model price is the default. It changes what Expected yield, Expected profit, Avg CLV and Beat close are measured against, everywhere on the tab (the cards, the chart, the split table and the CLV column of the graded list).",
-          "The Average CLV card is the exception: it always shows CLV against Pinnacle's close, on both sides of the switch.",
+          "The NFL / CFB tab has a new switch: Model price or Pinnacle's close. Model price is the default. It changes what Expected yield, Expected profit and Beat close are measured against (the cards, the chart and the split table).",
+          "CLV does not change with the switch: Average CLV, the Avg CLV column of the split table and the CLV column of the graded list are always against Pinnacle's close.",
           "Pinnacle's close is what the tab used to show: the price taken against Pinnacle's closing no-vig price.",
           "Model price measures the price taken against the model's own fair price for the bet, the one it priced when the bet was placed. Same arithmetic, before commission.",
-          "The model price does not move after the bet, so on that side Beat close will sit near 100% (the bot only bets when its price beats the model's), and Avg CLV is the edge the model saw rather than a closing-line test. Set it next to the Pinnacle side to see how much of the model's edge the market agreed with by kickoff.",
+          "The model price does not move after the bet, so on that side Beat close will sit near 100% (the bot only bets when its price beats the model's), and Expected yield is the edge the model saw rather than a closing-line test. Set it next to Average CLV to see how much of the model's edge the market agreed with by kickoff.",
           'The "CLV before and after" panel (the 2026-10-06 limit rule) no longer shows on the NFL / CFB tab. The limit rule never applied to model bets. It stays on the BetInAsian Overview.',
         ],
       },

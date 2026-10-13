@@ -89,7 +89,7 @@ function Dashboard({ email }) {
     setLoading(true)
     try {
       const [w, a, b, labels, limits, models] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
+        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
         fetchModelPrices()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.

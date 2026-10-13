@@ -154,26 +154,17 @@ export async function fetchAccounts() {
   return Object.fromEntries(data.map((a) => [a.tag, a.description || a.tag]))
 }
 
-// The books this user may see, as granted in user_book_access (the database
-// only returns those). Balance columns come from migration 003.
+// The books this user may see. user_book_access is the only place access is
+// granted: the RLS policy on dim_book returns just the rows granted there, so
+// giving someone a book is one row in that table and nothing in this code.
+// Balance columns come from migration 003.
 const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
-// Books only some people may see. The real gate is user_book_access
-// (migration 010 grants Bet99 to these two); this list only keeps the tab
-// hidden from anyone else should the database ever hand them the book. Adding
-// a person means adding them in BOTH places.
-const RESTRICTED_BOOKS = {
-  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com', 'jackstaffen111@gmail.com'],
-}
-const maySee = (name, email) =>
-  !RESTRICTED_BOOKS[name] || RESTRICTED_BOOKS[name].includes(String(email ?? '').toLowerCase())
-
-export async function fetchBooks(email) {
+export async function fetchBooks() {
   const { data, error } = await supabase.from('dim_book').select('*')
   if (error) throw error
   return data
-    .filter((b) => maySee(b.name, email))
     .map((b) => ({
       name: b.name,
       currency: b.currency,

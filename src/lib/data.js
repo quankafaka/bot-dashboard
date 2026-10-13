@@ -164,7 +164,7 @@ const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : B
 // hidden from anyone else should the database ever hand them the book. Adding
 // a person means adding them in BOTH places.
 const RESTRICTED_BOOKS = {
-  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com'],
+  Bet99: ['gilbert.oi@hotmail.com', 'alexquanfafa@gmail.com', 'jackstaffen111@gmail.com'],
 }
 const maySee = (name, email) =>
   !RESTRICTED_BOOKS[name] || RESTRICTED_BOOKS[name].includes(String(email ?? '').toLowerCase())

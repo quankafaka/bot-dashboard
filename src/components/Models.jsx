@@ -38,6 +38,9 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
   const modelRows = useMemo(() => (basis === 'model' ? againstModel(leagueRows) : leagueRows),
     [leagueRows, basis])
   const s = useMemo(() => summarize(applyFilters(modelRows, filters)), [modelRows, filters])
+  // Average CLV stays on Pinnacle's close whichever side the switch is on:
+  // against the model price it is only the edge the model saw at placement.
+  const pin = useMemo(() => summarize(applyFilters(leagueRows, filters)), [leagueRows, filters])
   const priced = leagueRows.some((r) => r.model_price != null)
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
 
@@ -105,9 +108,11 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
           </div>
         </header>
         <div className="cards pad-cards">
-          <Card label={<Hint term={term('Avg CLV')}>Average CLV</Hint>} value={pct(s.avgClv, { digits: 2 })}
-            valueTone={tone(s.avgClv)}
-            sub={s.bets ? `Over ${Math.round(s.clvCoverage * s.bets)} of ${s.bets} settled bets` : 'No settled bets'} />
+          <Card label={<Hint term="Avg CLV">Average CLV</Hint>} value={pct(pin.avgClv, { digits: 2 })}
+            valueTone={tone(pin.avgClv)}
+            sub={pin.bets
+              ? `Against Pinnacle's close, over ${Math.round(pin.clvCoverage * pin.bets)} of ${pin.bets} settled bets`
+              : 'No settled bets'} />
           <Card label={<Hint term={term('Beat close')}>{basis === 'model' ? 'Beat the model' : 'Beat the close'}</Hint>}
             value={pct(s.beatClose, { digits: 1 })}
             valueTone={s.beatClose == null ? '' : tone(s.beatClose - 50)}

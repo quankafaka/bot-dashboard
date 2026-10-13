@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { money, pct, tone, betTime, multiAccount, when, bookZone } from '../lib/format'
 import { useOdds } from '../lib/odds'
-import AlertCell, { LimitCell, hasLimits } from './AlertCell'
+import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import Hint from './Hint'
-import { useIsMobile } from '../lib/useIsMobile'
+import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
 const PAGE = 100
@@ -15,7 +15,7 @@ export default function Pending({ rows, currency, accountNames }) {
   const [q, setQ] = useState('')
   const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
-  const mobile = useIsMobile()
+  const mobile = useIsMobile(BET_TABLE_QUERY)
 
   const showLimit = hasLimits(rows)
   const showAccount = multiAccount(rows)
@@ -48,14 +48,15 @@ export default function Pending({ rows, currency, accountNames }) {
           {pending.length === 0 && <p className="muted">{empty}</p>}
         </div>
       ) : (
-      <div className="scroll">
-        <table>
+      <div className="scroll fit">
+        <table className="fit">
           <thead>
             <tr>
               <th scope="col">Placed</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
-              <th scope="col">Alert / model</th>
+              <th scope="col">Move</th>
+              <th scope="col">Alert</th>
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">At risk</th>
@@ -67,14 +68,14 @@ export default function Pending({ rows, currency, accountNames }) {
           <tbody>
             {pending.slice(0, shown).map((r) => (
               <tr key={r.wager_id}>
-                <td className="nowrap">{betTime(r)}</td>
-                <td>
+                <td className="keep">{betTime(r)}</td>
+                <td className="long">
                   <div>{r.home_team} v {r.away_team}</div>
                   <div className="sub">
                     {r.league}{r.start_time && `, starts ${when(r.start_time, bookZone(r.book))}`}
                   </div>
                 </td>
-                <td>
+                <td className="long">
                   <div>{r.selection}</div>
                   <div className="sub">
                     {betLabel(r)}
@@ -82,6 +83,7 @@ export default function Pending({ rows, currency, accountNames }) {
                     {r.is_freebet && <span className="tag">Free bet</span>}
                   </div>
                 </td>
+                <MoveCell r={r} />
                 <AlertCell r={r} />
                 {showLimit && <LimitCell r={r} />}
                 <td className="num">{fmt(r.price_filled)}</td>
@@ -92,7 +94,7 @@ export default function Pending({ rows, currency, accountNames }) {
               </tr>
             ))}
             {pending.length === 0 && (
-              <tr><td colSpan={8 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
+              <tr><td colSpan={9 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
             )}
           </tbody>
         </table>

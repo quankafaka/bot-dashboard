@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { money, pct, tone, betTime, multiAccount } from '../lib/format'
 import { useOdds } from '../lib/odds'
-import AlertCell, { LimitCell, hasLimits } from './AlertCell'
+import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
-import { useIsMobile } from '../lib/useIsMobile'
+import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
 import Hint from './Hint'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
@@ -16,7 +16,7 @@ export default function Graded({ rows, currency, accountNames }) {
   const [q, setQ] = useState('')
   const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
-  const mobile = useIsMobile()
+  const mobile = useIsMobile(BET_TABLE_QUERY)
 
   const showLimit = hasLimits(rows)
   const showAccount = multiAccount(rows)
@@ -45,14 +45,15 @@ export default function Graded({ rows, currency, accountNames }) {
           {graded.length === 0 && <p className="muted">No settled bets match “{q}”.</p>}
         </div>
       ) : (
-      <div className="scroll">
-        <table>
+      <div className="scroll fit">
+        <table className="fit">
           <thead>
             <tr>
               <th scope="col">Placed</th>
               <th scope="col">Game</th>
               <th scope="col">Bet</th>
-              <th scope="col">Alert / model</th>
+              <th scope="col">Move</th>
+              <th scope="col">Alert</th>
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
@@ -66,14 +67,14 @@ export default function Graded({ rows, currency, accountNames }) {
           <tbody>
             {graded.slice(0, shown).map((r) => (
               <tr key={r.wager_id}>
-                <td className="nowrap">{betTime(r)}</td>
-                <td>
+                <td className="keep">{betTime(r)}</td>
+                <td className="long">
                   <div>{r.home_team} v {r.away_team}</div>
                   <div className="sub">
                     {r.league}{r.home_score != null && `, ended ${r.home_score}–${r.away_score}`}
                   </div>
                 </td>
-                <td>
+                <td className="long">
                   <div>{r.selection}</div>
                   <div className="sub">
                     {betLabel(r)}
@@ -81,6 +82,7 @@ export default function Graded({ rows, currency, accountNames }) {
                     {r.is_freebet && <span className="tag">Free bet</span>}
                   </div>
                 </td>
+                <MoveCell r={r} />
                 <AlertCell r={r} />
                 {showLimit && <LimitCell r={r} />}
                 <td className="num">
@@ -90,13 +92,13 @@ export default function Graded({ rows, currency, accountNames }) {
                 <td className="num">{money(r.stake, currency)}</td>
                 <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
                 <td className={`num ${tone(r.clv_pct)}`}>{pct(r.clv_pct)}</td>
-                <td><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>
+                <td className="keep"><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>
                 <td className={`num ${tone(r.profit)}`}>{money(r.profit, currency, { sign: true })}</td>
                 {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
               </tr>
             ))}
             {graded.length === 0 && (
-              <tr><td colSpan={10 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">No settled bets match “{q}”.</td></tr>
+              <tr><td colSpan={11 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">No settled bets match “{q}”.</td></tr>
             )}
           </tbody>
         </table>

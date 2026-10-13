@@ -15,7 +15,7 @@ const RESULT_LABEL = {
 // screen: the game and the outcome on top, the bet and the money under it,
 // then the alert and where it came from.
 //   mode 'pending'  -> stake at risk, EV at log and now
-//   mode 'graded'   -> result and profit, CLV
+//   mode 'graded'   -> result and profit, CLV, EV at log
 //   mode 'ungraded' -> why no result is coming, and the ID for the overrides file
 export default function BetCard({ r, currency, accountNames, mode, showAccount = false }) {
   const fmt = useOdds()
@@ -45,7 +45,7 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
     mode === 'graded' && r.clv_pct != null ? `CLV ${pct(r.clv_pct)}` : null,
     // Tap either EV for what it means -- the same explanations as the
     // Pending table's column headers.
-    mode !== 'graded' && r.ev_pct_log != null
+    r.ev_pct_log != null
       ? <Hint term="EV at log, per bet">EV {pct(r.ev_pct_log)}</Hint> : null,
     mode === 'pending' && r.current_ev_pct != null
       ? <Hint term="EV now">now {pct(r.current_ev_pct)}</Hint> : null,

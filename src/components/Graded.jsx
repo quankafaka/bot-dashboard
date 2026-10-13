@@ -4,6 +4,7 @@ import { useOdds } from '../lib/odds'
 import AlertCell, { LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import { useIsMobile } from '../lib/useIsMobile'
+import Hint from './Hint'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
 const PAGE = 100
@@ -55,6 +56,7 @@ export default function Graded({ rows, currency, accountNames }) {
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
               <th scope="col" className="num">Stake</th>
+              <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
               <th scope="col" className="num">CLV</th>
               <th scope="col">Result</th>
               <th scope="col" className="num">Profit</th>
@@ -86,6 +88,7 @@ export default function Graded({ rows, currency, accountNames }) {
                   {r.closing_price != null && <div className="sub">closed {fmt(r.closing_price)}</div>}
                 </td>
                 <td className="num">{money(r.stake, currency)}</td>
+                <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
                 <td className={`num ${tone(r.clv_pct)}`}>{pct(r.clv_pct)}</td>
                 <td><span className={`result r-${r.result?.toLowerCase()}`}>{RESULT_LABEL[r.result] ?? r.result}</span></td>
                 <td className={`num ${tone(r.profit)}`}>{money(r.profit, currency, { sign: true })}</td>
@@ -93,7 +96,7 @@ export default function Graded({ rows, currency, accountNames }) {
               </tr>
             ))}
             {graded.length === 0 && (
-              <tr><td colSpan={9 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">No settled bets match “{q}”.</td></tr>
+              <tr><td colSpan={10 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">No settled bets match “{q}”.</td></tr>
             )}
           </tbody>
         </table>

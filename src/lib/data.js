@@ -59,6 +59,7 @@ export async function fetchWagers() {
     for (const k of NUMERIC) r[k] = r[k] == null ? null : Number(r[k])
     r.placedMs = Date.parse(r.placed_at)
     r.startMs = r.start_time ? Date.parse(r.start_time) : null
+    if (r.account === SHARED_BET99) r.account = SHARED_BET99_OWNER
   }
   return rows
 }
@@ -183,25 +184,35 @@ export async function fetchDevig() {
   return devig
 }
 
+// Every Bet99 bet under the shared 'bet99' account is Alex's: the bot's bets
+// from before the two-device split (2026-10-14) were placed from Alex's
+// computer, and Bet99 bets logged by hand are his too. They are folded into
+// Alex's account here, on the page, rather than in the database: the BIA
+// laptop's sync writes 'bet99' on the rows it grades and on hand-logged ones,
+// so a database fix would be undone by its next run.
+const SHARED_BET99 = 'bet99'
+const SHARED_BET99_OWNER = 'bet99#alex'
+
 // What each account is called on the page: its description, else a name
 // made from the tag. Bet99 runs on two devices (2026-10-14) and the bot files
 // each device's bets under its own tag, 'bet99#jack', the way Mise's are split
 // into 'mise#1', 'mise#2'; the bot writes the device's name as the
-// description, so the fallback only shows until it has. 'bet99' is what
-// hand-logged Bet99 bets carry; the bot's own bets from before the split were
-// moved to Alex's account (jobs/claim_past_bets.py in the bot).
+// description, so the fallback only shows until it has. ('bet99' itself never
+// reaches the page: see SHARED_BET99 above.)
 export function accountLabel(tag, description) {
   if (description) return description
   const device = /^bet99#(.+)$/i.exec(tag ?? '')
   if (device) return device[1].charAt(0).toUpperCase() + device[1].slice(1)
-  if (tag === 'bet99') return 'Logged by hand'
   return tag
 }
 
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error
-  return Object.fromEntries(data.map((a) => [a.tag, accountLabel(a.tag, a.description)]))
+  const names = Object.fromEntries(data.map((a) => [a.tag, accountLabel(a.tag, a.description)]))
+  // Named even before Alex's computer has pushed a bet under its own tag.
+  names[SHARED_BET99_OWNER] ??= accountLabel(SHARED_BET99_OWNER, null)
+  return names
 }
 
 // The books this user may see, as granted in user_book_access (the database

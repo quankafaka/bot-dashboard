@@ -30,8 +30,7 @@ export const PATCH_NOTES = [
         heading: 'On this site',
         bullets: [
           "On the Bet99 tab, each computer's bets are filed under their own account, the way Mise-o-jeu's are split by account: the account filter buttons, the Account column in Pending and Graded, and Split by Account on the Overview.",
-          "The bot's Bet99 bets from before today were all placed from Alex's computer, so they are under Alex.",
-          'Bet99 bets logged by hand show under "Logged by hand".',
+          "Every Bet99 bet from before today, and every Bet99 bet logged by hand, is Alex's and shows under Alex.",
         ],
       },
     ],

@@ -183,10 +183,25 @@ export async function fetchDevig() {
   return devig
 }
 
+// What each account is called on the page: its description, else a name
+// made from the tag. Bet99 runs on two devices (2026-10-14) and the bot files
+// each device's bets under its own tag, 'bet99#jack', the way Mise's are split
+// into 'mise#1', 'mise#2'; the bot writes the device's name as the
+// description, so the fallback only shows until it has. 'bet99' is what
+// hand-logged Bet99 bets carry; the bot's own bets from before the split were
+// moved to Alex's account (jobs/claim_past_bets.py in the bot).
+export function accountLabel(tag, description) {
+  if (description) return description
+  const device = /^bet99#(.+)$/i.exec(tag ?? '')
+  if (device) return device[1].charAt(0).toUpperCase() + device[1].slice(1)
+  if (tag === 'bet99') return 'Logged by hand'
+  return tag
+}
+
 export async function fetchAccounts() {
   const { data, error } = await supabase.from('dim_account').select('tag, description')
   if (error) throw error
-  return Object.fromEntries(data.map((a) => [a.tag, a.description || a.tag]))
+  return Object.fromEntries(data.map((a) => [a.tag, accountLabel(a.tag, a.description)]))
 }
 
 // The books this user may see, as granted in user_book_access (the database

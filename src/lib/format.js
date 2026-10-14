@@ -59,8 +59,9 @@ const BOOK_ZONE = { BetInAsian: 'America/Costa_Rica' }
 export const bookZone = (book) => BOOK_ZONE[book] ?? DEFAULT_ZONE
 
 // The Account column only earns its place on a book with more than one
-// account (Mise today). BetInAsian has one, so it is left off there -- the
-// same rule the account filter buttons use.
+// account: Mise (mise#1, mise#2) and Bet99 (one per device the bot runs on,
+// bet99#<name>, since 2026-10-14). BetInAsian has one, so it is left off
+// there -- the same rule the account filter buttons use.
 export const multiAccount = (rows) => new Set(rows.map((r) => r.account)).size > 1
 
 // When the bet was placed, on its book's clock.

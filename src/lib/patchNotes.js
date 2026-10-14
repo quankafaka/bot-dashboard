@@ -6,6 +6,37 @@
 
 export const PATCH_NOTES = [
   {
+    date: '2026-10-14',
+    title: 'Bet99: two devices, in 6-hour turns, each with its own account',
+    sections: [
+      {
+        heading: 'What changed',
+        text: "The Bet99 bot now runs on two computers, on the same Bet99 account, never both at once. They take turns in 6-hour blocks of the clock (Toronto time), whenever each was started. Each bet records which computer placed it.",
+        table: {
+          head: ['Block', 'Computer'],
+          rows: [
+            ['00:00-06:00', 'Alex'],
+            ['06:00-12:00', 'Jack'],
+            ['12:00-18:00', 'Alex'],
+            ['18:00-24:00', 'Jack'],
+          ],
+        },
+        bullets: [
+          'A computer stops 5 minutes before its block ends, so the two are never logged in to Bet99 together.',
+          'Nothing else about the bets changes: same EV floor, same stakes, same grading from pdropper.',
+        ],
+      },
+      {
+        heading: 'On this site',
+        bullets: [
+          "On the Bet99 tab, each computer's bets are filed under their own account, the way Mise-o-jeu's are split by account: the account filter buttons, the Account column in Pending and Graded, and Split by Account on the Overview.",
+          "The bot's Bet99 bets from before today were all placed from Alex's computer, so they are under Alex.",
+          'Bet99 bets logged by hand show under "Logged by hand".',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-13',
     title: 'BetInAsian: the bot now de-vigs Pinnacle itself, with the method that fits the market',
     sections: [

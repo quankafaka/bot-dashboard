@@ -29,6 +29,11 @@ export const GLOSSARY = {
     "This bet's EV when pdropper logged it: the price we got, compared with Pinnacle's no-vig line at that moment.",
   'EV now':
     "This bet's EV right now: the price we got, compared with Pinnacle's current no-vig line. Updated at every sync. Higher than EV at log means the line has moved our way since the bet went in.",
+  // The same two, for a group of open bets (Overall's Pending tab).
+  'EV at log, weighted':
+    "The EV pdropper recorded when each bet was logged, averaged with each bet weighted by its stake: a $300 bet counts three times a $100 one. Bets with no EV logged are left out.",
+  'EV now, weighted':
+    "Each bet's EV against Pinnacle's current no-vig line, averaged with each bet weighted by its stake. Higher than EV at log means the lines have moved our way since the bets went in. Bets with no current price are left out.",
 }
 
 const WIDTH = 300

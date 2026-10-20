@@ -58,16 +58,54 @@ p { margin: 0; }
 .seg button.on { background: var(--panel); color: var(--text); box-shadow: 0 0 0 1px var(--border); }
 
 /* ---- header ------------------------------------------------------------ */
-.top { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 12px 20px; }
-.brand { display: flex; align-items: center; gap: 10px; }
-.logo {
-  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px;
-  background: var(--text); color: var(--bg); font: 700 13px var(--mono); letter-spacing: -0.04em;
-}
+.top { display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 12px 20px; }
+.top .who { grid-column: -2 / -1; }
 h1 { margin: 0; font-size: 17px; font-weight: 700; }
-.books { justify-self: center; }
-.books.single button { cursor: default; }
-.books .ccy { font: 500 11px var(--mono); color: var(--muted-2); margin-left: 4px; }
+
+/* The sportsbook picker, top left: a two-line button the height of the
+   balance box, and its menu. */
+.picker { position: relative; }
+.picker-btn {
+  display: flex; align-items: center; gap: 14px; min-width: 210px; padding: 5px 12px 5px 14px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 7px; text-align: left; cursor: pointer;
+}
+.picker-btn:hover:not(:disabled), .picker-btn.open { border-color: var(--border-strong); background: var(--raised); }
+.picker-btn:disabled { cursor: default; }
+.picker-text { display: flex; flex-direction: column; line-height: 1.2; flex: 1; min-width: 0; }
+.picker-label { font: 500 11px var(--mono); color: var(--muted-2); white-space: nowrap; }
+.picker-value { font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picker-caret {
+  width: 8px; height: 8px; margin-top: -3px; flex-shrink: 0;
+  border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted); transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+.picker-btn.open .picker-caret { transform: rotate(-135deg); margin-top: 3px; }
+.picker-menu {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 40; min-width: 100%; width: max-content; max-width: calc(100vw - 24px);
+  margin: 0; padding: 6px; list-style: none;
+  background: var(--raised); border: 1px solid var(--border-strong); border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+.picker-heading {
+  margin: 6px 0 2px; padding: 6px 10px 2px; border-top: 1px solid var(--border);
+  font: 600 10px var(--mono); letter-spacing: 0.08em; color: var(--muted-2);
+}
+.picker-opt {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px;
+  padding: 7px 10px; border-radius: 5px; cursor: pointer; outline: none;
+}
+.picker-opt.active { background: var(--raised-on); }
+.picker-opt.on { box-shadow: inset 2px 0 0 var(--green); }
+.picker-opt.on .picker-opt-name { color: var(--text); }
+.picker-opt-name { font-weight: 600; color: var(--muted); }
+.picker-opt.active .picker-opt-name { color: var(--text); }
+.picker-opt-meta { display: flex; align-items: center; gap: 10px; }
+.picker-count { font: 500 11px var(--mono); color: var(--muted-2); }
+.picker .ccy { font: 500 11px var(--mono); color: var(--muted-2); }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 .who { display: flex; align-items: center; gap: 8px; }
 .balance {
   display: flex; gap: 18px; padding: 5px 14px; border: 1px solid var(--border); border-radius: 7px;
@@ -82,8 +120,6 @@ h1 { margin: 0; font-size: 17px; font-weight: 700; }
 .dot.bad { background: var(--red); }
 
 .tabs { display: flex; gap: 2px; margin: 16px 0 14px; border-bottom: 1px solid var(--border); }
-/* The Overall page has no view tabs; keep the gap they leave under the header. */
-main.overall { margin-top: 16px; }
 .tabs button {
   border: 0; background: none; padding: 9px 14px; cursor: pointer; color: var(--muted);
   font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -201,6 +237,14 @@ table.fit .keep { white-space: nowrap; }
 }
 .search input::placeholder { color: var(--muted-2); }
 .more { display: block; margin: 14px auto 0; }
+/* Pending: the website buttons carry their currency like the book switcher;
+   a split row is a button that narrows the bet list, and the chip undoes it. */
+.toolbar .ccy { font: 500 11px var(--mono); color: var(--muted-2); margin-left: 4px; }
+tr.pick { cursor: pointer; }
+button.link { border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+button.link:hover { text-decoration: underline; }
+button.day-row { width: 100%; border: 0; border-bottom: 1px solid var(--border); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.chip { display: inline-flex; gap: 6px; align-items: center; }
 .more:not(.btn) { background: var(--raised); border: 1px solid var(--border); border-radius: 6px; padding: 7px 16px; cursor: pointer; }
 .error {
   color: #fecaca; background: #1f0b0b; border: 1px solid #5b1d1d;
@@ -228,8 +272,7 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
 }
 @media (max-width: 800px) {
   .top { grid-template-columns: 1fr auto; }
-  .books { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
-  .balance { grid-column: 1 / -1; grid-row: 3; justify-self: start; }
+  .balance { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
   .stamp { display: none; }
   .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chart { height: 280px; }
@@ -302,14 +345,14 @@ button.primary:disabled { opacity: 0.6; cursor: default; }
   }
   .menu-panel .stamp { display: inline-flex; }
 
-  /* header: logo + short title, book switch, balance, menu */
+  /* header: sportsbook picker and menu, then the balance */
   .top { grid-template-columns: 1fr auto; gap: 10px; }
-  .brand h1 { font-size: 15px; }
   .who { display: none; }
   .menu { display: block; grid-column: 2; grid-row: 1; }
-  .books { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; }
-  .books button { flex: 1; }
-  .balance { grid-column: 1 / -1; grid-row: 3; justify-self: stretch; justify-content: space-between; }
+  .picker { grid-column: 1; grid-row: 1; }
+  .picker-btn { width: 100%; min-width: 0; }
+  .picker-menu { width: 100%; }
+  .balance { grid-column: 1 / -1; grid-row: 2; justify-self: stretch; justify-content: space-between; }
 
   /* tabs: a bar at the bottom, in reach of a thumb */
   .tabs {

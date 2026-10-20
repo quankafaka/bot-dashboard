@@ -11,6 +11,8 @@ import Daily from './components/Daily'
 import Models from './components/Models'
 import PatchNotes from './components/PatchNotes'
 import Overall from './components/Overall'
+import BookPicker from './components/BookPicker'
+import OverallPending from './components/OverallPending'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 import { DEVIG_BOOKS } from './components/AlertCell'
 
@@ -18,9 +20,9 @@ import { DEVIG_BOOKS } from './components/AlertCell'
 // only its own model bets; the other books have no model and no such page.
 const MODEL_BOOKS = ['BetInAsian', 'Mise-o-jeu']
 
-// The Overall page sits in the book switcher, after the books, for the people
-// granted it in user_page_access. Not a real book name, so no book's bets
-// ever match it.
+// The Overall page heads the book dropdown, and is where the dashboard opens,
+// for the people granted it in user_page_access. Not a real book name, so no
+// book's bets ever match it.
 const OVERALL = 'overall'
 
 export default function App() {
@@ -141,10 +143,10 @@ function Dashboard({ email }) {
       setBooks(b)
       setPages(p)
       // First load, or a book (or the Overall page) that was taken away: show
-      // the first book allowed.
+      // Overall if this user has it, else the first book allowed.
       const keep = (book) => b.some((x) => x.name === book) || (book === OVERALL && p.has(OVERALL))
-      setFilters((f) => (keep(f.book) ? f
-        : { ...f, book: b[0]?.name ?? null, accounts: [] }))
+      const first = p.has(OVERALL) && b.length ? OVERALL : b[0]?.name ?? null
+      setFilters((f) => (keep(f.book) ? f : { ...f, book: first, accounts: [] }))
       setError(null)
       setLoadedAt(new Date())
     } catch (e) {
@@ -163,7 +165,6 @@ function Dashboard({ email }) {
 
   const book = books?.find((b) => b.name === filters.book)
   const bookRows = useMemo(() => (rows ?? []).filter((r) => r.book === filters.book), [rows, filters.book])
-  const openCount = bookRows.filter((r) => r.status === 'pending').length
   const bal = useMemo(() => accountBalance(bookRows, book), [bookRows, book])
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
@@ -174,29 +175,33 @@ function Dashboard({ email }) {
   // 'include bets the bot did not record' switch would only hide all of them.
   const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')
   const viewFilters = logOnly ? { ...filters, includeManual: true } : filters
-  const view = tab === 'models' && !showModels ? 'performance' : tab
+  // Overall has only its Overview and Pending; a book's other tabs show its
+  // Overview there.
+  const view = overall ? (tab === 'pending' ? 'pending' : 'performance')
+    : tab === 'models' && !showModels ? 'performance' : tab
+  const openCount = (overall ? rows ?? [] : bookRows).filter((r) => r.status === 'pending').length
+  // Open bets per book, for the sportsbook menu.
+  const openCounts = useMemo(() => {
+    const n = {}
+    for (const r of rows ?? []) if (r.status === 'pending') n[r.book] = (n[r.book] ?? 0) + 1
+    return n
+  }, [rows])
+  const allOpen = Object.values(openCounts).reduce((a, b) => a + b, 0)
+  const tabs = overall ? [['performance', 'Overview'], ['pending', 'Pending']] : [
+    ['performance', 'Overview'],
+    ['daily', 'Daily'],
+    ['pending', 'Pending'],
+    ['graded', 'Graded'],
+    ...(showModels ? [['models', 'NFL / CFB']] : []),
+    ['notes', <><span className="long">Patch notes</span><span className="short">Notes</span></>],
+  ]
 
   return (
     <div className="shell">
       <header className="top">
-        <div className="brand">
-          <span className="logo" aria-hidden="true">SC</span>
-          <h1>Steam chasing dashboard</h1>
-        </div>
-        <div className={`seg books ${books?.length === 1 && !canOverall ? 'single' : ''}`} role="tablist" aria-label="Book">
-          {(books ?? []).map((b) => (
-            <button key={b.name} role="tab" aria-selected={filters.book === b.name}
-              className={filters.book === b.name ? 'on' : ''} onClick={() => setBook(b.name)}>
-              {b.name} <span className="ccy">{b.currency}</span>
-            </button>
-          ))}
-          {canOverall && (
-            <button role="tab" aria-selected={overall} className={overall ? 'on' : ''}
-              onClick={() => setBook(OVERALL)}>
-              Overall
-            </button>
-          )}
-        </div>
+        <h1 className="sr-only">Steam chasing dashboard</h1>
+        <BookPicker value={filters.book} onChange={setBook} books={books ?? []} openCounts={openCounts}
+          overall={canOverall ? { value: OVERALL, label: 'Overall', openCount: allOpen } : null} />
         {bal && (
           <div className="balance" title={`${money(bal.startingBalance, book.currency)} on ${bal.since}, plus every settled bet since`}>
             <div>
@@ -233,24 +238,14 @@ function Dashboard({ email }) {
         </details>
       </header>
 
-      {/* The Overall page is one view of its own: no Pending / Graded tabs. */}
-      {!overall && (
       <nav className="tabs" role="tablist" aria-label="View">
-        {[
-          ['performance', 'Overview'],
-          ['daily', 'Daily'],
-          ['pending', 'Pending'],
-          ['graded', 'Graded'],
-          ...(showModels ? [['models', 'NFL / CFB']] : []),
-          ['notes', <><span className="long">Patch notes</span><span className="short">Notes</span></>],
-        ].map(([id, label]) => (
+        {tabs.map(([id, label]) => (
           <button key={id} role="tab" aria-selected={view === id} className={view === id ? 'on' : ''}
             onClick={() => setTab(id)}>
             {label}{id === 'pending' && <span className="count">{openCount}</span>}
           </button>
         ))}
       </nav>
-      )}
 
       {error && (
         <p className="error">
@@ -265,9 +260,11 @@ function Dashboard({ email }) {
       )}
 
       {rows && overall && (
-        <main className="overall">
-          <TabBoundary key={OVERALL}>
-            <Overall rows={rows} books={books} />
+        <main>
+          <TabBoundary key={`${view}:${OVERALL}`}>
+            {view === 'pending'
+              ? <OverallPending rows={rows} books={books} accountNames={accounts} />
+              : <Overall rows={rows} books={books} />}
           </TabBoundary>
         </main>
       )}

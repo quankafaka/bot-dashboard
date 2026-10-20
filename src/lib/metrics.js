@@ -24,15 +24,20 @@ export function applyFilters(rows, f, now = Date.now()) {
 
 // ---- the Overall page -----------------------------------------------------
 // Every book the user can see, pooled by currency: the CAD books add up
-// together, USD on its own, never one into the other. Groups come in the
-// books' own order, each listing its books.
+// together, USD on its own, never one into the other. CAD comes first (the
+// Overall page opens on it), then the rest in the books' own order; each
+// group lists its books in that order too.
+const CURRENCY_FIRST = 'CAD'
+
 export function currencyGroups(books) {
   const groups = new Map()
   for (const b of books) {
     if (!groups.has(b.currency)) groups.set(b.currency, [])
     groups.get(b.currency).push(b)
   }
-  return [...groups.entries()].map(([currency, bs]) => ({ currency, books: bs }))
+  return [...groups.entries()]
+    .map(([currency, bs]) => ({ currency, books: bs }))
+    .sort((a, b) => (b.currency === CURRENCY_FIRST) - (a.currency === CURRENCY_FIRST))
 }
 
 // Only the period: the account and recorded-by filters belong to one book,
@@ -185,6 +190,64 @@ export function breakdownNested(rows, outerId, innerId) {
     .map(([key, rs]) => ({ key, ...summarize(rs), children: breakdown(rs, innerId) }))
     .sort((a, b) => b.turnover - a.turnover)
 }
+
+// ---- open bets: what is riding on what -----------------------------------
+// The Pending tab's split. Handle is the stake on open bets; to win is what
+// they pay over the stake if they all land: stake times the odds less one
+// (a free bet's stake does not come back, so the same figure holds). Falls
+// back to to_return when a bet has no price.
+export const toWin = (r) => {
+  if (r.price_filled > 1) return r.stake * (r.price_filled - 1)
+  return r.to_return != null ? r.to_return - r.stake : 0
+}
+
+const gameKey = (r) => `${r.home_team} v ${r.away_team}|${r.start_time ?? ''}`
+
+export const EXPOSURE_DIMENSIONS = [
+  { id: 'sport', label: 'Sport', key: (r) => r.sport },
+  { id: 'league', label: 'League', key: (r) => r.league },
+  { id: 'market', label: 'Market', key: (r) => marketLabel(r) },
+  { id: 'game', label: 'Game', key: gameKey },
+  // Only offered when the tab shows more than one website.
+  { id: 'book', label: 'Website', key: (r) => r.book },
+]
+
+// The EV of a set of bets, each weighted by its stake: a $300 bet at +4%
+// counts three times a $100 one. Bets with no EV (hand-logged ones, or no
+// price now) are left out of both sums rather than counted as zero.
+export function stakeWeighted(rows, field) {
+  const has = rows.filter((r) => r[field] != null && r.stake)
+  const stake = sum(has.map((r) => r.stake))
+  return stake ? sum(has.map((r) => r.stake * r[field])) / stake : null
+}
+
+// One row per group: bets, handle, to win, and the stake-weighted EV at log
+// and now. Games carry their teams, league and start for the label, and read
+// soonest first; the rest by handle.
+export function exposure(rows, dimId) {
+  const dim = EXPOSURE_DIMENSIONS.find((d) => d.id === dimId)
+  const groups = new Map()
+  for (const r of rows) {
+    const k = dim.key(r) ?? '—'
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(r)
+  }
+  const out = [...groups.entries()].map(([key, rs]) => ({
+    key,
+    bets: rs.length,
+    handle: sum(rs.map((r) => r.stake ?? 0)),
+    toWin: sum(rs.map(toWin)),
+    evLog: stakeWeighted(rs, 'ev_pct_log'),
+    evNow: stakeWeighted(rs, 'current_ev_pct'),
+    game: dimId === 'game' ? rs[0] : null,
+  }))
+  if (dimId === 'game') {
+    return out.sort((a, b) => (a.game.startMs ?? Infinity) - (b.game.startMs ?? Infinity) || b.handle - a.handle)
+  }
+  return out.sort((a, b) => b.handle - a.handle)
+}
+
+export const exposureKey = (dimId, r) => EXPOSURE_DIMENSIONS.find((d) => d.id === dimId).key(r) ?? '—'
 
 // ---- before / after a cutoff ----------------------------------------------
 // The day the higher-EV limit rule took over (2026-10-06, see the patch

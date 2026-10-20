@@ -99,7 +99,7 @@ function Dashboard({ email }) {
     setLoading(true)
     try {
       const [w, a, b, labels, limits, models, devig, p] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
+        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
         fetchModelPrices(), fetchDevig(), fetchPageAccess()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
@@ -154,7 +154,7 @@ function Dashboard({ email }) {
     } finally {
       setLoading(false)
     }
-  }, [email])
+  }, [])
 
   // Loads once when the dashboard opens; after that only the Refresh button
   // reloads. No timer: each reload downloads the full history, which is what

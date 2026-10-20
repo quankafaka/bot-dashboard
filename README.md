@@ -26,6 +26,11 @@ Anyone signed in to your Supabase project can read every wager (the RLS
 policies are `to authenticated`). So in Supabase: turn OFF new-user sign-ups
 and create each person by hand under Authentication -> Users.
 
+The **Overall** page (every book a person can see, added up by currency) only
+shows for people with an `overall` row in `user_page_access`. Run
+`supabase/013_user_page_access.sql` once to make the table, then grant people
+with the insert at the bottom of that file.
+
 ## Where things are
 
 * `src/lib/data.js`     loading from Supabase (paged; the API caps at 1,000 rows)

@@ -184,6 +184,21 @@ export async function fetchDevig() {
   return devig
 }
 
+// The pages beyond the per-book ones this user may open, as granted in
+// user_page_access (migration 013; the database only returns the user's own
+// rows). Today only 'overall'. An empty set, not an error, until the
+// migration has run: nobody sees those pages, the rest of the site loads.
+export async function fetchPageAccess() {
+  const { data, error } = await supabase.from('user_page_access').select('page')
+  if (error) {
+    const missing = ['42P01', 'PGRST205'].includes(error.code)
+      || /does not exist|could not find/i.test(error.message ?? '')
+    if (missing) return new Set()
+    throw error
+  }
+  return new Set(data.map((r) => r.page))
+}
+
 // Every Bet99 bet under the shared 'bet99' account is Alex's: the bot's bets
 // from before the two-device split (2026-10-14) were placed from Alex's
 // computer, and Bet99 bets logged by hand are his too. They are folded into
@@ -217,7 +232,8 @@ export async function fetchAccounts() {
 
 // The books this user may see, as granted in user_book_access (the database
 // only returns those). Balance columns come from migration 003.
-const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99']
+// A book missing here still shows, after these.
+const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99', 'OLG', 'LeoVegas']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
 // Books only some people may see. The real gate is user_book_access

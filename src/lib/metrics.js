@@ -8,14 +8,38 @@ export const PERIODS = [
   { id: 'all', label: 'All time', days: null },
 ]
 
+function periodSince(periodId, now) {
+  const period = PERIODS.find((p) => p.id === periodId)
+  return period?.days ? now - period.days * 86_400_000 : null
+}
+
 export function applyFilters(rows, f, now = Date.now()) {
-  const period = PERIODS.find((p) => p.id === f.period)
-  const since = period?.days ? now - period.days * 86_400_000 : null
+  const since = periodSince(f.period, now)
   return rows.filter((r) =>
     r.book === f.book
     && (f.accounts.length === 0 || f.accounts.includes(r.account))
     && (f.includeManual || r.source === 'bot')
     && (since == null || r.placedMs >= since))
+}
+
+// ---- the Overall page -----------------------------------------------------
+// Every book the user can see, pooled by currency: the CAD books add up
+// together, USD on its own, never one into the other. Groups come in the
+// books' own order, each listing its books.
+export function currencyGroups(books) {
+  const groups = new Map()
+  for (const b of books) {
+    if (!groups.has(b.currency)) groups.set(b.currency, [])
+    groups.get(b.currency).push(b)
+  }
+  return [...groups.entries()].map(([currency, bs]) => ({ currency, books: bs }))
+}
+
+// Only the period: the account and recorded-by filters belong to one book,
+// and the Overall page counts every bet that moved money.
+export function applyPeriod(rows, periodId, now = Date.now()) {
+  const since = periodSince(periodId, now)
+  return since == null ? rows : rows.filter((r) => r.placedMs >= since)
 }
 
 const sum = (xs) => xs.reduce((a, b) => a + b, 0)
@@ -387,5 +411,19 @@ export function accountBalance(rows, book) {
     inPlay: sum(inScope.filter((r) => r.status === 'pending').map((r) => r.stake)),
     startingBalance: book.startingBalance,
     since,
+  }
+}
+
+// The Overall page's balance: accountBalance added up over a currency's
+// books. Books with no starting balance are left out, and counted in
+// `missing` so the page can say the figure is short of them.
+export function pooledBalance(rows, books) {
+  const each = books.map((b) => accountBalance(rows.filter((r) => r.book === b.name), b))
+  const known = each.filter(Boolean)
+  if (!known.length) return null
+  return {
+    balance: sum(known.map((x) => x.balance)),
+    inPlay: sum(known.map((x) => x.inPlay)),
+    missing: books.filter((_, i) => !each[i]).map((b) => b.name),
   }
 }

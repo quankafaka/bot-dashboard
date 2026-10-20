@@ -1,6 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -10,12 +10,18 @@ import Graded from './components/Graded'
 import Daily from './components/Daily'
 import Models from './components/Models'
 import PatchNotes from './components/PatchNotes'
+import Overall from './components/Overall'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 import { DEVIG_BOOKS } from './components/AlertCell'
 
 // The books the NFL / CFB derivative models bet on. Each book's page shows
 // only its own model bets; the other books have no model and no such page.
 const MODEL_BOOKS = ['BetInAsian', 'Mise-o-jeu']
+
+// The Overall page sits in the book switcher, after the books, for the people
+// granted it in user_page_access. Not a real book name, so no book's bets
+// ever match it.
+const OVERALL = 'overall'
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still checking
@@ -77,6 +83,7 @@ function Dashboard({ email }) {
   const [rows, setRows] = useState(null)
   const [accounts, setAccounts] = useState({})
   const [books, setBooks] = useState(null)
+  const [pages, setPages] = useState(new Set())
   const [error, setError] = useState(null)
   const [loadedAt, setLoadedAt] = useState(null)
   const [loading, setLoading] = useState(false)
@@ -89,9 +96,9 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels, limits, models, devig] = await Promise.all([
+      const [w, a, b, labels, limits, models, devig, p] = await Promise.all([
         fetchWagers(), fetchAccounts(), fetchBooks(email), fetchStrategies(), fetchLimits(),
-        fetchModelPrices(), fetchDevig()])
+        fetchModelPrices(), fetchDevig(), fetchPageAccess()])
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
@@ -132,8 +139,11 @@ function Dashboard({ email }) {
       setRows(w.filter((r) => allowed.has(r.book)))
       setAccounts(a)
       setBooks(b)
-      // First load, or a book that was taken away: show the first one allowed.
-      setFilters((f) => (b.some((x) => x.name === f.book) ? f
+      setPages(p)
+      // First load, or a book (or the Overall page) that was taken away: show
+      // the first book allowed.
+      const keep = (book) => b.some((x) => x.name === book) || (book === OVERALL && p.has(OVERALL))
+      setFilters((f) => (keep(f.book) ? f
         : { ...f, book: b[0]?.name ?? null, accounts: [] }))
       setError(null)
       setLoadedAt(new Date())
@@ -157,6 +167,8 @@ function Dashboard({ email }) {
   const bal = useMemo(() => accountBalance(bookRows, book), [bookRows, book])
 
   const setBook = (name) => setFilters((f) => ({ ...f, book: name, accounts: [] }))
+  const canOverall = pages.has(OVERALL) && books?.length > 0
+  const overall = canOverall && filters.book === OVERALL
   const showModels = MODEL_BOOKS.includes(filters.book)
   // A book with no bot (Bet99): every bet was logged by hand, so the
   // 'include bets the bot did not record' switch would only hide all of them.
@@ -171,13 +183,19 @@ function Dashboard({ email }) {
           <span className="logo" aria-hidden="true">SC</span>
           <h1>Steam chasing dashboard</h1>
         </div>
-        <div className={`seg books ${books?.length === 1 ? 'single' : ''}`} role="tablist" aria-label="Book">
+        <div className={`seg books ${books?.length === 1 && !canOverall ? 'single' : ''}`} role="tablist" aria-label="Book">
           {(books ?? []).map((b) => (
             <button key={b.name} role="tab" aria-selected={filters.book === b.name}
               className={filters.book === b.name ? 'on' : ''} onClick={() => setBook(b.name)}>
               {b.name} <span className="ccy">{b.currency}</span>
             </button>
           ))}
+          {canOverall && (
+            <button role="tab" aria-selected={overall} className={overall ? 'on' : ''}
+              onClick={() => setBook(OVERALL)}>
+              Overall
+            </button>
+          )}
         </div>
         {bal && (
           <div className="balance" title={`${money(bal.startingBalance, book.currency)} on ${bal.since}, plus every settled bet since`}>
@@ -215,6 +233,8 @@ function Dashboard({ email }) {
         </details>
       </header>
 
+      {/* The Overall page is one view of its own: no Pending / Graded tabs. */}
+      {!overall && (
       <nav className="tabs" role="tablist" aria-label="View">
         {[
           ['performance', 'Overview'],
@@ -230,6 +250,7 @@ function Dashboard({ email }) {
           </button>
         ))}
       </nav>
+      )}
 
       {error && (
         <p className="error">
@@ -241,6 +262,14 @@ function Dashboard({ email }) {
         <p className="empty-state">
           No bot has been shared with {email} yet. Ask Alex to give this account access.
         </p>
+      )}
+
+      {rows && overall && (
+        <main className="overall">
+          <TabBoundary key={OVERALL}>
+            <Overall rows={rows} books={books} />
+          </TabBoundary>
+        </main>
       )}
 
       {rows && book && (

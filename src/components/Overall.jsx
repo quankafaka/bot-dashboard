@@ -13,7 +13,7 @@ import { useIsMobile } from '../lib/useIsMobile'
 export default function Overall({ rows, books }) {
   const groups = useMemo(() => currencyGroups(books), [books])
   const [picked, setPicked] = useState(groups[0]?.currency)
-  const [period, setPeriod] = useState('30d')
+  const [period, setPeriod] = useState('all')
   const mobile = useIsMobile()
   const group = groups.find((g) => g.currency === picked) ?? groups[0]
   const currency = group?.currency

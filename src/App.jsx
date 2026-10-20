@@ -92,7 +92,7 @@ function Dashboard({ email }) {
   const [labelsReady, setLabelsReady] = useState(false)
   const [tab, setTab] = useState('performance')
   const [filters, setFilters] = useState({
-    book: null, period: '30d', accounts: [], includeManual: true,
+    book: null, period: 'all', accounts: [], includeManual: true,
   })
 
   const load = useCallback(async () => {

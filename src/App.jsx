@@ -13,6 +13,7 @@ import PatchNotes from './components/PatchNotes'
 import Overall from './components/Overall'
 import BookPicker from './components/BookPicker'
 import OverallPending from './components/OverallPending'
+import OverallDaily from './components/OverallDaily'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 import { DEVIG_BOOKS } from './components/AlertCell'
 
@@ -175,9 +176,9 @@ function Dashboard({ email }) {
   // 'include bets the bot did not record' switch would only hide all of them.
   const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')
   const viewFilters = logOnly ? { ...filters, includeManual: true } : filters
-  // Overall has only its Overview and Pending; a book's other tabs show its
-  // Overview there.
-  const view = overall ? (tab === 'pending' ? 'pending' : 'performance')
+  // Overall has only its Overview, Daily and Pending; a book's other tabs
+  // show its Overview there.
+  const view = overall ? (['daily', 'pending'].includes(tab) ? tab : 'performance')
     : tab === 'models' && !showModels ? 'performance' : tab
   const openCount = (overall ? rows ?? [] : bookRows).filter((r) => r.status === 'pending').length
   // Open bets per book, for the sportsbook menu.
@@ -187,7 +188,7 @@ function Dashboard({ email }) {
     return n
   }, [rows])
   const allOpen = Object.values(openCounts).reduce((a, b) => a + b, 0)
-  const tabs = overall ? [['performance', 'Overview'], ['pending', 'Pending']] : [
+  const tabs = overall ? [['performance', 'Overview'], ['daily', 'Daily'], ['pending', 'Pending']] : [
     ['performance', 'Overview'],
     ['daily', 'Daily'],
     ['pending', 'Pending'],
@@ -262,9 +263,9 @@ function Dashboard({ email }) {
       {rows && overall && (
         <main>
           <TabBoundary key={`${view}:${OVERALL}`}>
-            {view === 'pending'
-              ? <OverallPending rows={rows} books={books} accountNames={accounts} />
-              : <Overall rows={rows} books={books} />}
+            {view === 'performance' && <Overall rows={rows} books={books} />}
+            {view === 'daily' && <OverallDaily rows={rows} books={books} />}
+            {view === 'pending' && <OverallPending rows={rows} books={books} accountNames={accounts} />}
           </TabBoundary>
         </main>
       )}

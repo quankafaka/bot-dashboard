@@ -64,16 +64,7 @@ export default function Overall({ rows, books }) {
   return (
     <>
       <section className="toolbar" aria-label="Filters">
-        {groups.length > 1 && (
-          <div className="seg" role="group" aria-label="Currency">
-            {groups.map((g) => (
-              <button key={g.currency} className={g.currency === currency ? 'on' : ''}
-                aria-pressed={g.currency === currency} onClick={() => setPicked(g.currency)}>
-                {g.currency}
-              </button>
-            ))}
-          </div>
-        )}
+        <CurrencySwitch groups={groups} value={currency} onChange={setPicked} />
         <div className="seg" role="group" aria-label="Period">
           {PERIODS.map((p) => (
             <button key={p.id} className={period === p.id ? 'on' : ''} aria-pressed={period === p.id}
@@ -149,5 +140,20 @@ export default function Overall({ rows, books }) {
         )}
       </section>
     </>
+  )
+}
+
+// The CAD / USD buttons on Overall's tabs. Nothing to switch with one currency.
+export function CurrencySwitch({ groups, value, onChange }) {
+  if (groups.length < 2) return null
+  return (
+    <div className="seg" role="group" aria-label="Currency">
+      {groups.map((g) => (
+        <button key={g.currency} className={g.currency === value ? 'on' : ''}
+          aria-pressed={g.currency === value} onClick={() => onChange(g.currency)}>
+          {g.currency}
+        </button>
+      ))}
+    </div>
   )
 }

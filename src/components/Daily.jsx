@@ -7,26 +7,40 @@ import Hint from './Hint'
 import { useIsMobile } from '../lib/useIsMobile'
 
 export default function Daily({ rows, filters, setFilters, currency, accountNames }) {
+  const filtered = useMemo(() => applyFilters(rows, { ...filters, period: 'all' }), [rows, filters])
+  return (
+    <Week rows={filtered} currency={currency} toolbar={(nav) => (
+      <Filters rows={rows} filters={filters} setFilters={setFilters} accountNames={accountNames} showPeriod={false}>
+        {nav}
+      </Filters>
+    )} />
+  )
+}
+
+// One Monday-to-Sunday week of the rows given, with the arrows to move it.
+// toolbar(nav) draws the row above the cards, given the week arrows to put
+// in it: a book's Daily tab sets them among its filters, Overall's next to
+// its currency switch.
+export function Week({ rows, currency, toolbar }) {
   const thisWeek = weekStart(localToday())
   const [start, setStart] = useState(thisWeek)
   const today = localToday()
   const mobile = useIsMobile()
 
-  const filtered = useMemo(() => applyFilters(rows, { ...filters, period: 'all' }), [rows, filters])
-  const w = useMemo(() => week(filtered, start), [filtered, start])
+  const w = useMemo(() => week(rows, start), [rows, start])
   const t = w.total
 
   return (
     <>
-      <Filters rows={rows} filters={filters} setFilters={setFilters} accountNames={accountNames} showPeriod={false}>
+      {toolbar(
         <div className="week-nav" role="group" aria-label="Week">
           <button className="btn icon" aria-label="Previous week" onClick={() => setStart(addDays(start, -7))}>‹</button>
           <span className="week-label">{shortDate(start)} – {shortDate(addDays(start, 6))}</span>
           <button className="btn icon" aria-label="Next week" disabled={start >= thisWeek}
             onClick={() => setStart(addDays(start, 7))}>›</button>
           {start !== thisWeek && <button className="btn" onClick={() => setStart(thisWeek)}>This week</button>}
-        </div>
-      </Filters>
+        </div>,
+      )}
 
       <div className="cards wide">
         <Card label="Profit" value={money(t.profit, currency, { sign: true })} valueTone={tone(t.profit)}

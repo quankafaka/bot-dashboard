@@ -8,23 +8,22 @@ const hourFmt = new Intl.DateTimeFormat('en-CA', { timeZone: zone, hour: '2-digi
 const dayFmt = new Intl.DateTimeFormat('en-CA', { timeZone: zone, weekday: 'short', month: 'short', day: 'numeric' })
 const hour = (ms) => hourFmt.format(new Date(ms))
 const day = (ms) => dayFmt.format(new Date(ms))
-const PERIOD = { '24h': 'day', '7d': 'week', '30d': 'month' }
+const PERIOD = { '24h': 'day', '7d': 'week' }
 const short = (v, currency) => money(v, currency).replace(/\.\d\d$/, '')
 
 // The Overall Pending tab's handle chart (handleSeries): handle placed over
 // the range, every system together, with the range before laid under it,
-// point for point. The day and the month are smooth lines (the one before
-// dashed); the week is a bar per day, this week's narrow and bright in
+// point for point. The day is a smooth line (the one before dashed); the
+// week is a bar per day, this week's narrow and bright in
 // front of last week's wide and faded, each on its own axis so they overlap
 // instead of standing side by side.
 export default function HandleChart({ data, currency, range }) {
   const r = HANDLE_RANGES.find((x) => x.id === range)
   const week = range === '7d'
-  const daily = range !== '24h'
   const before = week ? 'Week before' : `${r.label} before`
   // The day's points fall every 10 minutes; ticks only on the hour.
-  const ticks = daily ? undefined : data.filter((b) => hour(b.ms).endsWith(':00')).map((b) => b.ms)
-  const tickLabel = (ms) => (week ? day(ms).replace(/,.*/, '') : daily ? day(ms).replace(/^\w+, /, '') : hour(ms))
+  const ticks = week ? undefined : data.filter((b) => hour(b.ms).endsWith(':00')).map((b) => b.ms)
+  const tickLabel = (ms) => (week ? day(ms).replace(/,.*/, '') : hour(ms))
   return (
     <div className="chart short">
       <ResponsiveContainer width="100%" height="100%">
@@ -79,9 +78,9 @@ function Tip({ active, payload, currency, range, before }) {
   const p = payload[0].payload
   const { step, buckets, window } = range
   const span = step * buckets
-  const daily = range.id !== '24h'
+  const week = range.id === '7d'
   // A day point is its own day; a 24-hour point is the hour up to the end of its step.
-  const when = (ms) => (daily ? day(ms) : `${hour(ms + step - window * step)} to ${hour(ms + step)}`)
+  const when = (ms) => (week ? day(ms) : `${hour(ms + step - window * step)} to ${hour(ms + step)}`)
   const bets = (n) => `${n} ${n === 1 ? 'bet' : 'bets'}`
   const change = p.prevHandle ? Math.round((p.handle / p.prevHandle - 1) * 100) : null
   return (

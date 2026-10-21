@@ -236,6 +236,12 @@ table.fit .keep { white-space: nowrap; }
   padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); min-width: 280px;
 }
 .search input::placeholder { color: var(--muted-2); }
+/* Overall Pending's month chart: month and year. */
+.pickers { display: flex; gap: 6px; }
+.pickers select {
+  font: inherit; color: var(--text); padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--panel); cursor: pointer;
+}
 .more { display: block; margin: 14px auto 0; }
 /* Pending: the website buttons carry their currency like the book switcher;
    a split row is a button that narrows the bet list, and the chip undoes it. */

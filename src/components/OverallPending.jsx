@@ -4,10 +4,11 @@ import { useOdds } from '../lib/odds'
 import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import HandleChart from './HandleChart'
+import MonthChart, { monthName } from './MonthChart'
 import Hint from './Hint'
 import { Card } from './Daily'
 import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
-import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES } from '../lib/metrics'
+import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES, monthCumulative, prevMonth, placedMonths, localToday } from '../lib/metrics'
 
 const PAGE = 100
 
@@ -49,6 +50,19 @@ export default function OverallPending({ rows, books, accountNames }) {
   }, [rows, sites, range])
   const rangeLabel = HANDLE_RANGES.find((r) => r.id === range).label
   const { handle: placed, bets: placedBets, prevHandle: prevPlaced } = series
+  // A calendar month's running total, against the month before.
+  const thisMonth = localToday().slice(0, 7)
+  const [ym, setYm] = useState(thisMonth)
+  const month = useMemo(() => {
+    const on = new Set(sites)
+    return monthCumulative(rows.filter((r) => on.has(r.book)), ym)
+  }, [rows, sites, ym])
+  const years = useMemo(() => {
+    const ys = new Set([thisMonth.slice(0, 4), ...placedMonths(rows).map((m) => m.slice(0, 4))])
+    return [...ys].sort().reverse()
+  }, [rows, thisMonth])
+  // Picking a year keeps the month, unless that month has not come yet.
+  const pickYm = (y, m) => setYm(`${y}-${m}` > thisMonth ? thisMonth : `${y}-${m}`)
 
   const showLimit = hasLimits(open)
   const showAccount = multiAccount(open)
@@ -126,26 +140,6 @@ export default function OverallPending({ rows, books, accountNames }) {
         <Card label={<Hint term="EV now, weighted">EV now</Hint>} value={pct(evNow, { digits: 2 })}
           valueTone={tone(evNow)} sub="Stake-weighted, at today's Pinnacle line" />
       </div>
-
-      <section className="panel">
-        <header className="panel-head">
-          <div>
-            <h2>Handle, last {rangeLabel}</h2>
-            <p className="muted">
-              Placed {range === '24h' ? 'per hour, every 10 minutes' : 'per day'}, every system together: {money(placed, currency)} on {placedBets.toLocaleString('en-CA')} {placedBets === 1 ? 'bet' : 'bets'},
-              against {money(prevPlaced, currency)} the {rangeLabel} before
-              {prevPlaced > 0 && ` (${pct((placed / prevPlaced - 1) * 100, { digits: 0 })})`}
-            </p>
-          </div>
-          <div className="seg" role="group" aria-label="Chart range">
-            {HANDLE_RANGES.map((r) => (
-              <button key={r.id} className={range === r.id ? 'on' : ''} aria-pressed={range === r.id}
-                onClick={() => setRange(r.id)}>{r.label}</button>
-            ))}
-          </div>
-        </header>
-        <HandleChart data={series.points} currency={currency} range={range} />
-      </section>
 
       <section className="panel">
         <header className="panel-head">
@@ -234,6 +228,51 @@ export default function OverallPending({ rows, books, accountNames }) {
           </table>
         </div>
         )}
+      </section>
+
+      <section className="panel">
+        <header className="panel-head">
+          <div>
+            <h2>Handle, last {rangeLabel}</h2>
+            <p className="muted">
+              Placed {range === '24h' ? 'per hour, every 10 minutes' : 'per day'}, every system together: {money(placed, currency)} on {placedBets.toLocaleString('en-CA')} {placedBets === 1 ? 'bet' : 'bets'},
+              against {money(prevPlaced, currency)} the {rangeLabel} before
+              {prevPlaced > 0 && ` (${pct((placed / prevPlaced - 1) * 100, { digits: 0 })})`}
+            </p>
+          </div>
+          <div className="seg" role="group" aria-label="Chart range">
+            {HANDLE_RANGES.map((r) => (
+              <button key={r.id} className={range === r.id ? 'on' : ''} aria-pressed={range === r.id}
+                onClick={() => setRange(r.id)}>{r.label}</button>
+            ))}
+          </div>
+        </header>
+        <HandleChart data={series.points} currency={currency} range={range} />
+      </section>
+
+      <section className="panel">
+        <header className="panel-head">
+          <div>
+            <h2>Handle, {monthName(ym)} {ym.slice(0, 4)}</h2>
+            <p className="muted">
+              Running total, every system together: {money(month.handle, currency)} on {month.bets.toLocaleString('en-CA')} {month.bets === 1 ? 'bet' : 'bets'},
+              against {money(month.prevHandle, currency)} in {monthName(prevMonth(ym))}
+            </p>
+          </div>
+          <div className="pickers">
+            <select aria-label="Month" value={ym.slice(5)} onChange={(e) => pickYm(ym.slice(0, 4), e.target.value)}>
+              {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => (
+                <option key={m} value={m} disabled={`${ym.slice(0, 4)}-${m}` > thisMonth}>
+                  {monthName(`2000-${m}`)}
+                </option>
+              ))}
+            </select>
+            <select aria-label="Year" value={ym.slice(0, 4)} onChange={(e) => pickYm(e.target.value, ym.slice(5))}>
+              {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </header>
+        <MonthChart data={month.points} currency={currency} ym={ym} pm={prevMonth(ym)} />
       </section>
 
       <div className="search">

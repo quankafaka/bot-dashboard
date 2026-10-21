@@ -252,17 +252,16 @@ export const exposureKey = (dimId, r) => EXPOSURE_DIMENSIONS.find((d) => d.id ==
 // ---- handle placed over time ----------------------------------------------
 // The Overall Pending tab's chart, every system together: the last day as a
 // rolling hour, moved on every 10 minutes so the line runs smooth; the last
-// week or month by Montreal calendar day.
+// week by Montreal calendar day.
 const HOUR = 3_600_000
 export const HANDLE_RANGES = [
   { id: '24h', label: '24 hours', step: HOUR / 6, buckets: 144, window: 6 },
   { id: '7d', label: '7 days', step: 24 * HOUR, buckets: 7, window: 1 },
-  { id: '30d', label: '30 days', step: 24 * HOUR, buckets: 30, window: 1 },
 ]
 
 // One point per step of the range, oldest first, the step now running last:
 // the stake put down in the `window` steps up to and including it (the hour
-// to then, for the day; the day itself, for the week and month).
+// to then, for the day; the day itself, for the week).
 // prevHandle / prevBets are the same point one range earlier, to lay over it.
 // handle / bets / prevHandle on the result are the whole range's totals.
 // Every bet placed counts, whatever has become of it since. Steps start on
@@ -302,6 +301,55 @@ export function handleSeries(rows, rangeId, now = Date.now(), offsetMs = 0) {
   }))
   return { points, handle: round2(totals.handle), bets: totals.bets, prevHandle: round2(totals.prevHandle) }
 }
+
+// ---- handle over a calendar month ------------------------------------------
+// The Overall Pending tab's month chart: handle placed so far in a Montreal
+// calendar month (placed_date_local), running total day by day, every system
+// together, with the month before laid over it day for day (the 1st on the
+// 1st). ym is 'YYYY-MM'. The month's line stops at today; a line runs only as
+// many days as its month has. handle / bets / prevHandle on the result are
+// the months' totals.
+export const prevMonth = (ym) => {
+  const [y, m] = ym.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+const monthDays = (ym) => {
+  const [y, m] = ym.split('-').map(Number)
+  return new Date(Date.UTC(y, m, 0)).getUTCDate()
+}
+
+export function monthCumulative(rows, ym, today = localToday()) {
+  const pm = prevMonth(ym)
+  const cur = new Array(monthDays(ym)).fill(0)
+  const prev = new Array(monthDays(pm)).fill(0)
+  const curBets = new Array(cur.length).fill(0)
+  const prevBets = new Array(prev.length).fill(0)
+  for (const r of rows) {
+    const d = r.placed_date_local
+    if (!d) continue
+    const day = Number(d.slice(8, 10)) - 1
+    if (d.startsWith(ym)) { cur[day] += r.stake ?? 0; curBets[day] += 1 }
+    else if (d.startsWith(pm)) { prev[day] += r.stake ?? 0; prevBets[day] += 1 }
+  }
+  // The days of this month that have begun: all of a past month, none of a future one.
+  const upTo = today.slice(0, 7) > ym ? cur.length : today.startsWith(ym) ? Number(today.slice(8, 10)) : 0
+  const points = []
+  let h = 0, b = 0, ph = 0, pb = 0
+  for (let i = 0; i < Math.max(cur.length, prev.length); i++) {
+    h += cur[i] ?? 0; b += curBets[i] ?? 0
+    ph += prev[i] ?? 0; pb += prevBets[i] ?? 0
+    points.push({
+      day: i + 1,
+      handle: i < upTo ? round2(h) : null, bets: i < upTo ? b : null,
+      prevHandle: i < prev.length ? round2(ph) : null, prevBets: i < prev.length ? pb : null,
+    })
+  }
+  return { points, handle: round2(sum(cur)), bets: sum(curBets), prevHandle: round2(sum(prev)) }
+}
+
+// The months the bets were placed in, 'YYYY-MM', newest first.
+export const placedMonths = (rows) =>
+  [...new Set(rows.map((r) => r.placed_date_local?.slice(0, 7)).filter(Boolean))].sort().reverse()
 
 // ---- before / after a cutoff ----------------------------------------------
 // The day the higher-EV limit rule took over (2026-10-06, see the patch

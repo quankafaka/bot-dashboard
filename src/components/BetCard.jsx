@@ -98,7 +98,9 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
       </div>
       {mode === 'ungraded' && (
         <div className="bc-meta">
-          <span className="tag">{r.ev_pct_log == null ? 'Not in pdropper' : 'pdropper never graded it'}</span>
+          {/* Not ev_pct_log: a device that sends its own bets fills nvp_at_log
+              itself, so a bet with no pdropper row has one too. */}
+          <span className="tag">No pdropper result</span>
           <span className="bc-id">{r.wager_id}</span>
         </div>
       )}

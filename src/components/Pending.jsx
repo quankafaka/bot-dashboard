@@ -11,15 +11,20 @@ const PAGE = 100
 
 // The open bets: still waiting on a result. Newest placed first (patch notes
 // 2026-10-05), with the stake at risk and the EV at log next to the EV now.
-export default function Pending({ rows, currency, accountNames }) {
+// status 'unlogged' lists the bets no result is coming for instead (the game
+// is over and pdropper never graded them, e.g. a model's alt line Pinnacle
+// does not offer): the same table, the stake, no EV now.
+export default function Pending({ rows, currency, accountNames, status = 'pending' }) {
   const [q, setQ] = useState('')
   const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
   const mobile = useIsMobile(BET_TABLE_QUERY)
 
+  const unlogged = status === 'unlogged'
+  const noun = unlogged ? 'unlogged' : 'open'
   const showLimit = hasLimits(rows)
   const showAccount = multiAccount(rows)
-  const open = useMemo(() => rows.filter((r) => r.status === 'pending'), [rows])
+  const open = useMemo(() => rows.filter((r) => r.status === status), [rows, status])
   const pending = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return open
@@ -27,23 +32,25 @@ export default function Pending({ rows, currency, accountNames }) {
       .sort((a, b) => b.placedMs - a.placedMs)
   }, [open, q])
   const atRisk = pending.reduce((t, r) => t + (r.stake ?? 0), 0)
-  const empty = open.length === 0 ? 'No open bets right now.' : `No open bets match “${q}”.`
+  const empty = open.length === 0
+    ? (unlogged ? 'No unlogged bets.' : 'No open bets right now.')
+    : `No ${noun} bets match “${q}”.`
 
   return (
     <section>
       <div className="search">
-        <label htmlFor="q-pending">Find a bet</label>
-        <input id="q-pending" type="search" placeholder="Team, league or selection" value={q}
+        <label htmlFor={`q-${status}`}>Find a bet</label>
+        <input id={`q-${status}`} type="search" placeholder="Team, league or selection" value={q}
           onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} />
         <span className="muted">
-          {pending.length.toLocaleString('en-CA')} open, {money(atRisk, currency)} at risk
+          {pending.length.toLocaleString('en-CA')} {noun}, {money(atRisk, currency)} {unlogged ? 'staked' : 'at risk'}
         </span>
       </div>
       {mobile ? (
         <div className="cards-list">
           {pending.slice(0, shown).map((r) => (
             <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
-              showAccount={showAccount} mode="pending" />
+              showAccount={showAccount} mode={unlogged ? 'ungraded' : 'pending'} />
           ))}
           {pending.length === 0 && <p className="muted">{empty}</p>}
         </div>
@@ -59,9 +66,9 @@ export default function Pending({ rows, currency, accountNames }) {
               <th scope="col">Alert</th>
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
-              <th scope="col" className="num">At risk</th>
+              <th scope="col" className="num">{unlogged ? 'Stake' : 'At risk'}</th>
               <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
-              <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>
+              {!unlogged && <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>}
               {showAccount && <th scope="col">Account</th>}
             </tr>
           </thead>
@@ -89,12 +96,12 @@ export default function Pending({ rows, currency, accountNames }) {
                 <td className="num">{fmt(r.price_filled)}</td>
                 <td className="num">{money(r.stake, currency)}</td>
                 <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
-                <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>
+                {!unlogged && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}
                 {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
               </tr>
             ))}
             {pending.length === 0 && (
-              <tr><td colSpan={9 + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
+              <tr><td colSpan={(unlogged ? 8 : 9) + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
             )}
           </tbody>
         </table>

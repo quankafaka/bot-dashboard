@@ -125,15 +125,19 @@ export default function Models({ rows, filters, setFilters, currency, accountNam
       {/* A segment, not .tabs: on phones .tabs is the fixed bottom bar. */}
       <section className="toolbar">
         <div className="seg" role="group" aria-label="Model bets">
-          {[['graded', 'Graded'], ['pending', `Pending (${s.openCount})`]].map(([id, label]) => (
+          {[['graded', 'Graded'], ['pending', `Pending (${s.openCount})`],
+            ['unlogged', `Unlogged (${s.unlogged})`]].map(([id, label]) => (
             <button key={id} className={list === id ? 'on' : ''} aria-pressed={list === id}
               onClick={() => setList(id)}>{label}</button>
           ))}
         </div>
       </section>
+      {/* Unlogged: placed, but pdropper never graded them -- often a model
+          alt line Pinnacle does not offer, so they cannot be logged. Listed so
+          they are seen; they stay out of profit and CLV, having no result. */}
       {list === 'graded'
         ? <Graded rows={modelRows} currency={currency} accountNames={accountNames} />
-        : <Pending rows={modelRows} currency={currency} accountNames={accountNames} />}
+        : <Pending rows={modelRows} currency={currency} accountNames={accountNames} status={list} />}
     </>
   )
 }

@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
-import { money, pct, tone, betTime, multiAccount, when, bookZone } from '../lib/format'
+import { money, pct, tone, betTime, multiAccount, when, bookZone, zoneOffsetMs } from '../lib/format'
 import { useOdds } from '../lib/odds'
 import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
+import HandleChart from './HandleChart'
 import Hint from './Hint'
 import { Card } from './Daily'
 import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
-import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted } from '../lib/metrics'
+import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES } from '../lib/metrics'
 
 const PAGE = 100
 
@@ -39,6 +40,15 @@ export default function OverallPending({ rows, books, accountNames }) {
   const games = useMemo(() => exposure(open, 'game').length, [open])
   const evLog = stakeWeighted(open, 'ev_pct_log')
   const evNow = stakeWeighted(open, 'current_ev_pct')
+  // Every bet these websites placed in the range and the one before, settled or not.
+  const [range, setRange] = useState('24h')
+  const series = useMemo(() => {
+    const on = new Set(sites)
+    const now = Date.now()
+    return handleSeries(rows.filter((r) => on.has(r.book)), range, now, zoneOffsetMs(now))
+  }, [rows, sites, range])
+  const rangeLabel = HANDLE_RANGES.find((r) => r.id === range).label
+  const { handle: placed, bets: placedBets, prevHandle: prevPlaced } = series
 
   const showLimit = hasLimits(open)
   const showAccount = multiAccount(open)
@@ -116,6 +126,26 @@ export default function OverallPending({ rows, books, accountNames }) {
         <Card label={<Hint term="EV now, weighted">EV now</Hint>} value={pct(evNow, { digits: 2 })}
           valueTone={tone(evNow)} sub="Stake-weighted, at today's Pinnacle line" />
       </div>
+
+      <section className="panel">
+        <header className="panel-head">
+          <div>
+            <h2>Handle, last {rangeLabel}</h2>
+            <p className="muted">
+              Placed {range === '24h' ? 'per hour, every 10 minutes' : 'per day'}, every system together: {money(placed, currency)} on {placedBets.toLocaleString('en-CA')} {placedBets === 1 ? 'bet' : 'bets'},
+              against {money(prevPlaced, currency)} the {rangeLabel} before
+              {prevPlaced > 0 && ` (${pct((placed / prevPlaced - 1) * 100, { digits: 0 })})`}
+            </p>
+          </div>
+          <div className="seg" role="group" aria-label="Chart range">
+            {HANDLE_RANGES.map((r) => (
+              <button key={r.id} className={range === r.id ? 'on' : ''} aria-pressed={range === r.id}
+                onClick={() => setRange(r.id)}>{r.label}</button>
+            ))}
+          </div>
+        </header>
+        <HandleChart data={series.points} currency={currency} range={range} />
+      </section>
 
       <section className="panel">
         <header className="panel-head">

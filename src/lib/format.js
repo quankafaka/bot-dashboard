@@ -58,6 +58,18 @@ const BOOK_ZONE = { BetInAsian: 'America/Costa_Rica' }
 
 export const bookZone = (book) => BOOK_ZONE[book] ?? DEFAULT_ZONE
 
+// The zone's offset from UTC at that moment, in ms: -4 h in Montreal summer,
+// -5 h in winter.
+const offFmt = new Map()
+export function zoneOffsetMs(ms, timeZone = DEFAULT_ZONE) {
+  if (!offFmt.has(timeZone)) {
+    offFmt.set(timeZone, new Intl.DateTimeFormat('en-US', { timeZone, timeZoneName: 'longOffset' }))
+  }
+  const name = offFmt.get(timeZone).formatToParts(new Date(ms)).find((p) => p.type === 'timeZoneName').value
+  const m = /GMT([+-])(\d{2}):(\d{2})/.exec(name)
+  return m ? (m[1] === '-' ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) * 60_000 : 0
+}
+
 // The Account column only earns its place on a book with more than one
 // account: Mise (mise#1, mise#2) and Bet99 (one per device the bot runs on,
 // bet99#<name>, since 2026-10-14). BetInAsian has one, so it is left off

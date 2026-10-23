@@ -442,3 +442,47 @@ th.split-head { text-align: center; color: var(--text); }
   letter-spacing: 0; text-transform: none;
 }
 .hint-tip.above { transform: translateY(-100%); }
+/* ---- new-bet popups (NewBets) ------------------------------------------ */
+.toasts {
+  position: fixed; top: 16px; right: 16px; z-index: 60; width: 340px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.toast {
+  position: relative; overflow: hidden;
+  background: var(--raised); border: 1px solid var(--border-strong); border-left: 3px solid var(--green);
+  border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  animation: toast-in 0.22s ease-out;
+}
+.toast-body {
+  display: block; width: 100%; padding: 11px 36px 14px 14px; text-align: left;
+  background: none; border: 0; cursor: pointer; line-height: 1.45;
+}
+.toast-body:hover { background: var(--raised-on); }
+.toast-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
+.toast-tag { font: 600 11px var(--mono); color: var(--green); text-transform: uppercase; letter-spacing: 0.04em; }
+.toast-game { font-weight: 600; }
+.toast-facts { margin-top: 2px; font-family: var(--mono); font-size: 13px; }
+.toast-meta { margin-top: 2px; font-size: 12px; color: var(--muted-2); }
+.toast-x {
+  position: absolute; top: 6px; right: 6px; width: 26px; height: 26px;
+  border: 0; border-radius: 5px; background: none; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.toast-x:hover { background: var(--raised-on); color: var(--text); }
+/* The time left: runs out in 15 s, then closes the popup; held on hover. */
+.toast-timer {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--green); opacity: 0.6; transform-origin: left;
+  animation: toast-timer 15s linear forwards;
+}
+.toast:hover .toast-timer, .toast:focus-within .toast-timer { animation-play-state: paused; }
+.toast-more {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px 8px 14px; background: var(--raised); border: 1px solid var(--border);
+  border-radius: var(--radius); font-size: 13px; color: var(--muted);
+}
+@keyframes toast-in { from { transform: translateX(24px); opacity: 0; } }
+@keyframes toast-timer { to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none; } }
+@media (max-width: 700px) {
+  .toasts { top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; }
+}

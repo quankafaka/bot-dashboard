@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useState } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, configError } from './supabase'
 import { fetchWagers, fetchAccounts, fetchAccountBalances, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
 import { accountBalance } from './lib/metrics'
@@ -14,6 +14,7 @@ import Overall from './components/Overall'
 import BookPicker from './components/BookPicker'
 import OverallPending from './components/OverallPending'
 import OverallDaily from './components/OverallDaily'
+import NewBets from './components/NewBets'
 import { OddsProvider, useOddsFormat } from './lib/odds'
 import { DEVIG_BOOKS } from './components/AlertCell'
 
@@ -25,6 +26,44 @@ const MODEL_BOOKS = ['BetInAsian', 'Mise-o-jeu']
 // for the people granted it in user_page_access. Not a real book name, so no
 // book's bets ever match it.
 const OVERALL = 'overall'
+
+// The facts each bet carries from the side views (data.js), set on the rows
+// in place: on the whole history at load, on just the new bets after.
+function enrich(w, [labels, limits, models, devig]) {
+  // Which system took each bet (migration 008). Missing label: 'steam'
+  // for the bot's own and hand-logged rows, unattributed for BIA-only.
+  for (const r of w) {
+    r.strategy = labels?.get(r.wager_id) ?? (labels && r.source !== 'bia_order' ? 'steam' : null)
+  }
+  // Pinnacle's limit on each bet's market (migration 009). Left undefined
+  // until that migration has run, which hides every limit view.
+  for (const r of w) {
+    const l = limits?.get(r.wager_id)
+    r.pin_limit = l?.limit ?? null
+    r.limit_source = l?.source ?? null
+    r.limit_tier = l?.tier ?? null
+  }
+  // The NFL / CFB model's fair price and EV on its own bets (migration
+  // 011). Null on every other bet, and on all of them until it has run.
+  for (const r of w) {
+    const m = models?.get(r.wager_id)
+    r.model_price = m?.price ?? null
+    r.model_ev_pct = m?.ev ?? null
+  }
+  // How the bot made the fair price behind each bet's EV (migration 012):
+  // the de-vig method and Pinnacle's price before and after it. Null on
+  // older bets, hand-logged ones, and on all of them until it has run.
+  // BetInAsian bets only (DEVIG_BOOKS): every other book's stay null.
+  for (const r of w) {
+    const d = DEVIG_BOOKS.includes(r.book) ? devig?.get(r.wager_id) : null
+    r.devig_method = d?.method ?? null
+    r.devig_price_before = d?.before ?? null
+    r.devig_price_after = d?.after ?? null
+    r.devig_market_prices = d?.market ?? null
+    r.devig_pdrop_nvp = d?.pdropNvp ?? null
+    r.devig_hold_pct = d?.hold ?? null
+  }
+}
 
 export default function App() {
   const [session, setSession] = useState(undefined) // undefined = still checking
@@ -108,39 +147,7 @@ function Dashboard({ email }) {
         const tags = new Set(w.filter((r) => r.book === book.name).map((r) => r.account))
         book.accountBalances = ab.filter((x) => tags.has(x.tag))
       }
-      // Which system took each bet (migration 008). Missing label: 'steam'
-      // for the bot's own and hand-logged rows, unattributed for BIA-only.
-      for (const r of w) {
-        r.strategy = labels?.get(r.wager_id) ?? (labels && r.source !== 'bia_order' ? 'steam' : null)
-      }
-      // Pinnacle's limit on each bet's market (migration 009). Left undefined
-      // until that migration has run, which hides every limit view.
-      for (const r of w) {
-        const l = limits?.get(r.wager_id)
-        r.pin_limit = l?.limit ?? null
-        r.limit_source = l?.source ?? null
-        r.limit_tier = l?.tier ?? null
-      }
-      // The NFL / CFB model's fair price and EV on its own bets (migration
-      // 011). Null on every other bet, and on all of them until it has run.
-      for (const r of w) {
-        const m = models?.get(r.wager_id)
-        r.model_price = m?.price ?? null
-        r.model_ev_pct = m?.ev ?? null
-      }
-      // How the bot made the fair price behind each bet's EV (migration 012):
-      // the de-vig method and Pinnacle's price before and after it. Null on
-      // older bets, hand-logged ones, and on all of them until it has run.
-      // BetInAsian bets only (DEVIG_BOOKS): every other book's stay null.
-      for (const r of w) {
-        const d = DEVIG_BOOKS.includes(r.book) ? devig?.get(r.wager_id) : null
-        r.devig_method = d?.method ?? null
-        r.devig_price_before = d?.before ?? null
-        r.devig_price_after = d?.after ?? null
-        r.devig_market_prices = d?.market ?? null
-        r.devig_pdrop_nvp = d?.pdropNvp ?? null
-        r.devig_hold_pct = d?.hold ?? null
-      }
+      enrich(w, [labels, limits, models, devig])
       setLabelsReady(labels != null)
       // Only the books this user may see (fetchBooks), so a restricted book's
       // bets never sit in memory for anyone else.
@@ -164,11 +171,64 @@ function Dashboard({ email }) {
   }, [])
 
   // Loads once when the dashboard opens; after that only the Refresh button
-  // reloads. No timer: each reload downloads the full history, which is what
-  // was using up the Supabase egress quota.
+  // reloads the full history, which is what was using up the Supabase egress
+  // quota. The timer below asks only for bets placed since the newest one
+  // here, which is usually nothing.
   useEffect(() => {
     load()
   }, [load])
+
+  // New bets, every 30 seconds while the page is in view (and as soon as it
+  // comes back into view), added to the rows with their side-view facts.
+  const rowsRef = useRef(rows)
+  rowsRef.current = rows
+  const checkNew = useCallback(async () => {
+    const have = rowsRef.current
+    if (!have?.length || !books?.length || document.hidden) return
+    const newest = have.reduce((m, r) => Math.max(m, r.placedMs || 0), 0)
+    try {
+      const allowed = new Set(books.map((x) => x.name))
+      const known = new Set(have.map((r) => r.wager_id))
+      const fresh = (await fetchWagers({ since: new Date(newest).toISOString() }))
+        .filter((r) => allowed.has(r.book) && !known.has(r.wager_id))
+      if (!fresh.length) return
+      const ids = fresh.map((r) => r.wager_id)
+      enrich(fresh, await Promise.all([fetchStrategies(ids), fetchLimits(ids), fetchModelPrices(ids), fetchDevig(ids)]))
+      setRows((cur) => {
+        const ids = new Set(cur.map((r) => r.wager_id))
+        const add = fresh.filter((r) => !ids.has(r.wager_id))
+        return add.length ? [...cur, ...add] : cur
+      })
+    } catch (e) {
+      console.warn('New-bet check failed; the next one, or Refresh, tries again.', e)
+    }
+  }, [books])
+
+  useEffect(() => {
+    const timer = setInterval(checkNew, 30_000)
+    const onShow = () => { if (!document.hidden) checkNew() }
+    document.addEventListener('visibilitychange', onShow)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onShow)
+    }
+  }, [checkNew])
+
+  // A popup for each open bet that was not here before, whether the check
+  // above or Refresh brought it in. None for the bets the first load finds.
+  const seen = useRef(null)
+  const [popups, setPopups] = useState([])
+  useEffect(() => {
+    if (!rows) return
+    if (seen.current) {
+      const fresh = rows.filter((r) => r.status === 'pending' && !seen.current.has(r.wager_id))
+      if (fresh.length) setPopups((p) => [...fresh.sort((a, b) => b.placedMs - a.placedMs), ...p])
+    } else {
+      seen.current = new Set()
+    }
+    for (const r of rows) seen.current.add(r.wager_id)
+  }, [rows])
+  const closePopup = useCallback((id) => setPopups((p) => p.filter((r) => r.wager_id !== id)), [])
 
   const book = books?.find((b) => b.name === filters.book)
   const bookRows = useMemo(() => (rows ?? []).filter((r) => r.book === filters.book), [rows, filters.book])
@@ -205,6 +265,9 @@ function Dashboard({ email }) {
 
   return (
     <div className="shell">
+      <NewBets bets={popups} books={books ?? []} accountNames={accounts} onClose={closePopup}
+        onClear={() => setPopups([])}
+        onOpen={(r) => { setBook(r.book); setTab('pending'); closePopup(r.wager_id) }} />
       <header className="top">
         <h1 className="sr-only">Steam chasing dashboard</h1>
         <BookPicker value={filters.book} onChange={setBook} books={books ?? []} openCounts={openCounts}

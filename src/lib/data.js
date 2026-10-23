@@ -3,6 +3,10 @@ import { supabase } from '../supabase'
 // Supabase's API returns at most 1,000 rows per request, so read in pages.
 const PAGE = 1000
 
+// The side views below can be read for a few bets only (ids), for the bets
+// the new-bet check just brought in; without ids they read every bet.
+const only = (q, ids) => (ids ? q.in('wager_id', ids) : q)
+
 const BASE_COLUMNS = [
   'wager_id', 'source', 'status', 'placed_at', 'placed_date_local',
   'sport', 'league', 'country', 'home_team', 'away_team', 'start_time',
@@ -22,12 +26,12 @@ const NUMERIC = [...ALERT_COLUMNS,
   'line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
   'clv_pct', 'expected_profit', 'current_ev_pct', 'profit']
 
-async function readAll(columns) {
+async function readAll(columns, since) {
   const rows = []
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('v_wager')
-      .select(columns.join(','))
+    let q = supabase.from('v_wager').select(columns.join(','))
+    if (since) q = q.gte('placed_at', since)
+    const { data, error } = await q
       .order('placed_at', { ascending: true })
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
@@ -38,7 +42,9 @@ async function readAll(columns) {
   return rows
 }
 
-export async function fetchWagers() {
+// since: only the bets placed at or after that time (the new-bet check in
+// App), instead of the whole history.
+export async function fetchWagers({ since } = {}) {
   const attempts = [
     [...BASE_COLUMNS, ...ALERT_COLUMNS, ...ALERT_SELECTION],
     [...BASE_COLUMNS, ...ALERT_COLUMNS],
@@ -47,7 +53,7 @@ export async function fetchWagers() {
   let rows
   for (const columns of attempts) {
     try {
-      rows = await readAll(columns)
+      rows = await readAll(columns, since)
       break
     } catch (e) {
       const missingColumn = e?.code === '42703' || /does not exist/i.test(e?.message ?? '')
@@ -68,12 +74,10 @@ export async function fetchWagers() {
 // from v_wager_strategy (migration 008), joined to v_wager rows on wager_id.
 // Returns null, not an error, until that migration has run: the rest of the
 // dashboard does not depend on it, so it must not fail the whole load.
-export async function fetchStrategies() {
+export async function fetchStrategies(ids) {
   const labels = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('v_wager_strategy')
-      .select('wager_id,strategy')
+    const { data, error } = await only(supabase.from('v_wager_strategy').select('wager_id,strategy'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -92,12 +96,10 @@ export async function fetchStrategies() {
 // read by the bot for soccer since the limit rule went in, pdropper's logged
 // limit for everything else. Returns null, not an error, until that migration
 // has run -- like fetchStrategies, nothing else on the page depends on it.
-export async function fetchLimits() {
+export async function fetchLimits(ids) {
   const limits = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('v_wager_limit')
-      .select('wager_id,pinnacle_limit,limit_source,limit_tier')
+    const { data, error } = await only(supabase.from('v_wager_limit').select('wager_id,pinnacle_limit,limit_source,limit_tier'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -124,12 +126,10 @@ export async function fetchLimits() {
 // bet keeps Pinnacle's no-vig one (wagers.csv pinnacle_novig -> fact_wager
 // pin_novig), so this view only hands it out for model bets. Returns null,
 // not an error, until the migration has run.
-export async function fetchModelPrices() {
+export async function fetchModelPrices(ids) {
   const prices = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('v_wager_model')
-      .select('wager_id,model_price,model_ev_pct')
+    const { data, error } = await only(supabase.from('v_wager_model').select('wager_id,model_price,model_ev_pct'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -154,13 +154,11 @@ export async function fetchModelPrices() {
 // when pdropper's own EV was used), Pinnacle's price on the line before the
 // de-vig and the fair price after it. Bot bets from 2026-10-13 on only.
 // Returns null, not an error, until the migration has run.
-export async function fetchDevig() {
+export async function fetchDevig(ids) {
   const devig = new Map()
   const n = (v) => (v == null ? null : Number(v))
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await supabase
-      .from('v_wager_devig')
-      .select('wager_id,devig_method,devig_price_before,devig_price_after,devig_market_prices,devig_pdrop_nvp,devig_hold_pct')
+    const { data, error } = await only(supabase.from('v_wager_devig').select('wager_id,devig_method,devig_price_before,devig_price_after,devig_market_prices,devig_pdrop_nvp,devig_hold_pct'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {

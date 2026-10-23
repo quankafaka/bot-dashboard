@@ -212,10 +212,11 @@ const SHARED_BET99_OWNER = 'bet99#alex'
 // into 'mise#1', 'mise#2'; the bot writes the device's name as the
 // description, so the fallback only shows until it has. ('bet99' itself never
 // reaches the page: see SHARED_BET99 above.) The LeoVegas bot files its bets
-// the same way, 'leovegas#jack' (2026-10-20).
+// the same way, 'leovegas#jack' (2026-10-20), and so does Swiper's,
+// 'swiper#jack' (2026-10-22).
 export function accountLabel(tag, description) {
   if (description) return description
-  const device = /^(?:bet99|leovegas)#(.+)$/i.exec(tag ?? '')
+  const device = /^(?:bet99|leovegas|swiper)#(.+)$/i.exec(tag ?? '')
   if (device) return device[1].charAt(0).toUpperCase() + device[1].slice(1)
   return tag
 }
@@ -250,7 +251,7 @@ export async function fetchAccountBalances() {
 // only returns those, so that grant is the one place access is decided).
 // Balance columns come from migration 003.
 // A book missing here still shows, after these.
-const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99', 'OLG', 'LeoVegas']
+const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99', 'OLG', 'LeoVegas', 'Swiper']
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
 export async function fetchBooks() {

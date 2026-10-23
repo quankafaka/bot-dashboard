@@ -567,8 +567,23 @@ export function week(rows, start) {
 
 // Balance = starting balance + profit of every settled bet placed since the
 // start day. Ignores the page filters on purpose: it is the whole account.
+// A book shared by several people (book.accountBalances, migration 014) is
+// each account's balance, from its own bets, added up; `accounts` lists them.
 export function accountBalance(rows, book) {
-  if (!book || book.startingBalance == null) return null
+  if (!book) return null
+  if (book.accountBalances?.length) {
+    const accounts = book.accountBalances.map((a) => ({
+      tag: a.tag, ...accountBalance(rows.filter((r) => r.account === a.tag), a),
+    }))
+    return {
+      balance: sum(accounts.map((a) => a.balance)),
+      inPlay: sum(accounts.map((a) => a.inPlay)),
+      startingBalance: sum(accounts.map((a) => a.startingBalance)),
+      since: accounts[0].since,
+      accounts,
+    }
+  }
+  if (book.startingBalance == null) return null
   const since = book.balanceStart ?? '0000-00-00'
   const inScope = rows.filter((r) => r.placed_date_local >= since)
   return {

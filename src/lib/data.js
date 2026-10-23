@@ -230,6 +230,23 @@ export async function fetchAccounts() {
   return names
 }
 
+// The accounts with a starting balance of their own (migration 014), for
+// books shared by more than one person. Empty, not an error, until the
+// migration has run: those books then show no balance.
+export async function fetchAccountBalances() {
+  const { data, error } = await supabase.from('dim_account')
+    .select('tag, starting_balance, balance_start').not('starting_balance', 'is', null)
+  if (error) {
+    if (error.code === '42703' || /does not exist/i.test(error.message ?? '')) return []
+    throw error
+  }
+  return data.map((a) => ({
+    tag: a.tag,
+    startingBalance: Number(a.starting_balance),
+    balanceStart: a.balance_start ?? null,
+  }))
+}
+
 // The books this user may see, as granted in user_book_access (the database
 // only returns those, so that grant is the one place access is decided).
 // Balance columns come from migration 003.

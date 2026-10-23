@@ -1,6 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase, configError } from './supabase'
-import { fetchWagers, fetchAccounts, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchAccountBalances, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -99,9 +99,15 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels, limits, models, devig, p] = await Promise.all([
+      const [w, a, b, labels, limits, models, devig, p, ab] = await Promise.all([
         fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
-        fetchModelPrices(), fetchDevig(), fetchPageAccess()])
+        fetchModelPrices(), fetchDevig(), fetchPageAccess(), fetchAccountBalances()])
+      // Each account's own starting balance goes with the book it bets on
+      // (migration 014), which then shows a balance per account.
+      for (const book of b) {
+        const tags = new Set(w.filter((r) => r.book === book.name).map((r) => r.account))
+        book.accountBalances = ab.filter((x) => tags.has(x.tag))
+      }
       // Which system took each bet (migration 008). Missing label: 'steam'
       // for the bot's own and hand-logged rows, unattributed for BIA-only.
       for (const r of w) {
@@ -205,10 +211,18 @@ function Dashboard({ email }) {
           overall={canOverall ? { value: OVERALL, label: 'Overall', openCount: allOpen } : null} />
         {bal && (
           <div className="balance" title={`${money(bal.startingBalance, book.currency)} on ${bal.since}, plus every settled bet since`}>
-            <div>
-              <span className="balance-label">Balance</span>
-              <span className="balance-value">{money(bal.balance, book.currency)}</span>
-            </div>
+            {/* A shared book: one balance per person; Overall shows the total. */}
+            {bal.accounts ? bal.accounts.map((x) => (
+              <div key={x.tag} title={`${money(x.startingBalance, book.currency)} on ${x.since}, plus every settled bet since`}>
+                <span className="balance-label">{accounts[x.tag] ?? x.tag}</span>
+                <span className="balance-value">{money(x.balance, book.currency)}</span>
+              </div>
+            )) : (
+              <div>
+                <span className="balance-label">Balance</span>
+                <span className="balance-value">{money(bal.balance, book.currency)}</span>
+              </div>
+            )}
             <div>
               <span className="balance-label">In play</span>
               <span className="balance-value dim">{money(bal.inPlay, book.currency)}</span>

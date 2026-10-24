@@ -17,6 +17,7 @@ const RESULT_LABEL = {
 //   mode 'pending'  -> stake at risk, EV at log and now
 //   mode 'graded'   -> result and profit, CLV, EV at log
 //   mode 'ungraded' -> why no result is coming, and the ID for the overrides file
+//   mode 'finished' -> the game is over, result not in yet: the stake, EV at log
 export default function BetCard({ r, currency, accountNames, mode, showAccount = false, showBook = false }) {
   const fmt = useOdds()
   const alert = r.pin_price_before != null && r.pin_price_after != null

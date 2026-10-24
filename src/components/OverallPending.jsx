@@ -35,6 +35,12 @@ export default function OverallPending({ rows, books, accountNames }) {
     const on = new Set(sites)
     return rows.filter((r) => r.status === 'pending' && on.has(r.book))
   }, [rows, sites])
+  // Game over, result not in yet (migration 015): not riding, so out of
+  // every figure here; only counted under the bet list.
+  const finished = useMemo(() => {
+    const on = new Set(sites)
+    return rows.filter((r) => r.status === 'finished' && on.has(r.book))
+  }, [rows, sites])
   const split = useMemo(() => exposure(open, dim), [open, dim])
   const handle = open.reduce((t, r) => t + (r.stake ?? 0), 0)
   const win = open.reduce((t, r) => t + toWin(r), 0)
@@ -286,6 +292,8 @@ export default function OverallPending({ rows, books, accountNames }) {
         )}
         <span className="muted">
           {pending.length.toLocaleString('en-CA')} open, {money(atRisk, currency)} at risk
+          {finished.length > 0 && `; ${finished.length.toLocaleString('en-CA')} finished, ${
+            money(finished.reduce((t, r) => t + (r.stake ?? 0), 0), currency)} waiting for a result`}
         </span>
       </div>
       {mobile ? (

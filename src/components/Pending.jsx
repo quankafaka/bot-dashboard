@@ -14,14 +14,20 @@ const PAGE = 100
 // status 'unlogged' lists the bets no result is coming for instead (the game
 // is over and pdropper never graded them, e.g. a model's alt line Pinnacle
 // does not offer): the same table, the stake, no EV now.
-export default function Pending({ rows, currency, accountNames, status = 'pending' }) {
-  const [q, setQ] = useState('')
+// status 'finished' (migration 015) is the bets whose game is over but whose
+// result is not in yet: listed under the open bets, the same way as
+// 'unlogged', and searched with the open list's box (query). Not at risk.
+export default function Pending({ rows, currency, accountNames, status = 'pending', query }) {
+  const [own, setQ] = useState('')
+  const q = query ?? own
   const fmt = useOdds()
   const [shown, setShown] = useState(PAGE)
   const mobile = useIsMobile(BET_TABLE_QUERY)
 
   const unlogged = status === 'unlogged'
-  const noun = unlogged ? 'unlogged' : 'open'
+  const finished = status === 'finished'
+  const done = unlogged || finished       // the game is over: the stake, no EV now
+  const noun = unlogged ? 'unlogged' : finished ? 'finished' : 'open'
   const showLimit = hasLimits(rows)
   const showAccount = multiAccount(rows)
   const open = useMemo(() => rows.filter((r) => r.status === status), [rows, status])
@@ -36,21 +42,34 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
     ? (unlogged ? 'No unlogged bets.' : 'No open bets right now.')
     : `No ${noun} bets match “${q}”.`
 
+  if (finished && pending.length === 0) return null
+
   return (
     <section>
+      {finished ? (
+        <header className="panel-head">
+          <div>
+            <h2>Game over, waiting for a result</h2>
+            <p className="muted">
+              {pending.length.toLocaleString('en-CA')} {noun}, {money(atRisk, currency)} staked, not at risk
+            </p>
+          </div>
+        </header>
+      ) : (
       <div className="search">
         <label htmlFor={`q-${status}`}>Find a bet</label>
         <input id={`q-${status}`} type="search" placeholder="Team, league or selection" value={q}
           onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} />
         <span className="muted">
-          {pending.length.toLocaleString('en-CA')} {noun}, {money(atRisk, currency)} {unlogged ? 'staked' : 'at risk'}
+          {pending.length.toLocaleString('en-CA')} {noun}, {money(atRisk, currency)} {done ? 'staked' : 'at risk'}
         </span>
       </div>
+      )}
       {mobile ? (
         <div className="cards-list">
           {pending.slice(0, shown).map((r) => (
             <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
-              showAccount={showAccount} mode={unlogged ? 'ungraded' : 'pending'} />
+              showAccount={showAccount} mode={unlogged ? 'ungraded' : status} />
           ))}
           {pending.length === 0 && <p className="muted">{empty}</p>}
         </div>
@@ -66,9 +85,9 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
               <th scope="col">Alert</th>
               {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
               <th scope="col" className="num">Odds</th>
-              <th scope="col" className="num">{unlogged ? 'Stake' : 'At risk'}</th>
+              <th scope="col" className="num">{done ? 'Stake' : 'At risk'}</th>
               <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
-              {!unlogged && <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>}
+              {!done && <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>}
               {showAccount && <th scope="col">Account</th>}
             </tr>
           </thead>
@@ -96,12 +115,12 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
                 <td className="num">{fmt(r.price_filled)}</td>
                 <td className="num">{money(r.stake, currency)}</td>
                 <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
-                {!unlogged && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}
+                {!done && <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>}
                 {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
               </tr>
             ))}
             {pending.length === 0 && (
-              <tr><td colSpan={(unlogged ? 8 : 9) + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
+              <tr><td colSpan={(done ? 8 : 9) + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
             )}
           </tbody>
         </table>
@@ -111,6 +130,9 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
         <button className="more" onClick={() => setShown((n) => n + PAGE)}>
           Show {Math.min(PAGE, pending.length - shown)} more
         </button>
+      )}
+      {status === 'pending' && (
+        <Pending rows={rows} currency={currency} accountNames={accountNames} status="finished" query={q} />
       )}
     </section>
   )

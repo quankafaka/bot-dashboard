@@ -1,4 +1,4 @@
-import { supabase } from '../supabase'
+import { supabase, isPublic, from } from '../supabase'
 
 // Supabase's API returns at most 1,000 rows per request, so read in pages.
 const PAGE = 1000
@@ -29,7 +29,7 @@ const NUMERIC = [...ALERT_COLUMNS,
 async function readAll(columns, since) {
   const rows = []
   for (let from = 0; ; from += PAGE) {
-    let q = supabase.from('v_wager').select(columns.join(','))
+    let q = from('v_wager').select(columns.join(','))
     if (since) q = q.gte('placed_at', since)
     const { data, error } = await q
       .order('placed_at', { ascending: true })
@@ -77,7 +77,7 @@ export async function fetchWagers({ since } = {}) {
 export async function fetchStrategies(ids) {
   const labels = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await only(supabase.from('v_wager_strategy').select('wager_id,strategy'), ids)
+    const { data, error } = await only(from('v_wager_strategy').select('wager_id,strategy'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -99,7 +99,7 @@ export async function fetchStrategies(ids) {
 export async function fetchLimits(ids) {
   const limits = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await only(supabase.from('v_wager_limit').select('wager_id,pinnacle_limit,limit_source,limit_tier'), ids)
+    const { data, error } = await only(from('v_wager_limit').select('wager_id,pinnacle_limit,limit_source,limit_tier'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -129,7 +129,7 @@ export async function fetchLimits(ids) {
 export async function fetchModelPrices(ids) {
   const prices = new Map()
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await only(supabase.from('v_wager_model').select('wager_id,model_price,model_ev_pct'), ids)
+    const { data, error } = await only(from('v_wager_model').select('wager_id,model_price,model_ev_pct'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -158,7 +158,7 @@ export async function fetchDevig(ids) {
   const devig = new Map()
   const n = (v) => (v == null ? null : Number(v))
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await only(supabase.from('v_wager_devig').select('wager_id,devig_method,devig_price_before,devig_price_after,devig_market_prices,devig_pdrop_nvp,devig_hold_pct'), ids)
+    const { data, error } = await only(from('v_wager_devig').select('wager_id,devig_method,devig_price_before,devig_price_after,devig_market_prices,devig_pdrop_nvp,devig_hold_pct'), ids)
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) {
@@ -187,6 +187,7 @@ export async function fetchDevig(ids) {
 // rows). Today only 'overall'. An empty set, not an error, until the
 // migration has run: nobody sees those pages, the rest of the site loads.
 export async function fetchPageAccess() {
+  if (isPublic) return new Set(['overall'])
   const { data, error } = await supabase.from('user_page_access').select('page')
   if (error) {
     const missing = ['42P01', 'PGRST205'].includes(error.code)
@@ -223,7 +224,7 @@ export function accountLabel(tag, description) {
 }
 
 export async function fetchAccounts() {
-  const { data, error } = await supabase.from('dim_account').select('tag, description')
+  const { data, error } = await from('dim_account').select('tag, description')
   if (error) throw error
   const names = Object.fromEntries(data.map((a) => [a.tag, accountLabel(a.tag, a.description)]))
   // Named even before Alex's computer has pushed a bet under its own tag.
@@ -235,7 +236,7 @@ export async function fetchAccounts() {
 // books shared by more than one person. Empty, not an error, until the
 // migration has run: those books then show no balance.
 export async function fetchAccountBalances() {
-  const { data, error } = await supabase.from('dim_account')
+  const { data, error } = await from('dim_account')
     .select('tag, starting_balance, balance_start').not('starting_balance', 'is', null)
   if (error) {
     if (error.code === '42703' || /does not exist/i.test(error.message ?? '')) return []
@@ -256,7 +257,7 @@ const BOOK_ORDER = ['BetInAsian', 'Mise-o-jeu', 'Bet99', 'OLG', 'LeoVegas', 'Swi
 const rank = (name) => (BOOK_ORDER.includes(name) ? BOOK_ORDER.indexOf(name) : BOOK_ORDER.length)
 
 export async function fetchBooks() {
-  const { data, error } = await supabase.from('dim_book').select('*')
+  const { data, error } = await from('dim_book').select('*')
   if (error) throw error
   return data
     .map((b) => ({

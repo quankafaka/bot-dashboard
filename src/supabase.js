@@ -8,3 +8,9 @@ export const configError = !url || !key
   : null
 
 export const supabase = configError ? null : createClient(url, key)
+
+// The public site (the steam-chasing-dashboard Vercel project sets
+// VITE_PUBLIC=1): no login, and every read goes to the anon-readable
+// *_public views (migration 016), which hold the CAD books only.
+export const isPublic = import.meta.env.VITE_PUBLIC === '1'
+export const from = (table) => supabase.from(isPublic ? `${table}_public` : table)

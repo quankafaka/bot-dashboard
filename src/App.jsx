@@ -1,5 +1,5 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { supabase, configError } from './supabase'
+import { supabase, configError, isPublic } from './supabase'
 import { fetchWagers, fetchAccounts, fetchAccountBalances, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
@@ -76,6 +76,7 @@ export default function App() {
   }, [])
 
   if (configError) return <p className="fatal">{configError}</p>
+  if (isPublic) return <OddsProvider userId={null}><Dashboard /></OddsProvider>
   if (session === undefined) return null
   if (!session) return <Login />
   return (
@@ -299,7 +300,7 @@ function Dashboard({ email }) {
             {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
           </span>
           <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-          <button className="btn" onClick={() => supabase.auth.signOut()} title={email}>Sign out</button>
+          {!isPublic && <button className="btn" onClick={() => supabase.auth.signOut()} title={email}>Sign out</button>}
         </div>
         {/* Phones: the same controls, folded into one button. */}
         <details className="menu">
@@ -311,7 +312,7 @@ function Dashboard({ email }) {
               {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
             </span>
             <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
-            <button className="btn" onClick={() => supabase.auth.signOut()}>Sign out {email}</button>
+            {!isPublic && <button className="btn" onClick={() => supabase.auth.signOut()}>Sign out {email}</button>}
           </div>
         </details>
       </header>

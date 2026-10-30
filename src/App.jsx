@@ -341,7 +341,7 @@ function Dashboard({ email }) {
       {rows && overall && (
         <main>
           <TabBoundary key={`${view}:${OVERALL}`}>
-            {view === 'performance' && <Overall rows={rows} books={books} />}
+            {view === 'performance' && <Overall rows={rows} books={books} accountNames={accounts} />}
             {view === 'daily' && <OverallDaily rows={rows} books={books} />}
             {view === 'pending' && <OverallPending rows={rows} books={books} accountNames={accounts} />}
           </TabBoundary>

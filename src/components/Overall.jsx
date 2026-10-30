@@ -4,13 +4,14 @@ import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
 import { Card } from './Daily'
 import Hint from './Hint'
+import { SplitBy } from './Performance'
 import { useIsMobile } from '../lib/useIsMobile'
 
 // Every book the user can see, added up by currency (currencyGroups): one
 // currency at a time, its books pooled into one set of figures, then split
 // back out by book. Every bet counts, the bot's and the hand-logged ones
 // alike: this page is the money, not the bot.
-export default function Overall({ rows, books }) {
+export default function Overall({ rows, books, accountNames }) {
   const groups = useMemo(() => currencyGroups(books), [books])
   const [picked, setPicked] = useState(groups[0]?.currency)
   const [period, setPeriod] = useState('all')
@@ -139,6 +140,9 @@ export default function Overall({ rows, books }) {
         </div>
         )}
       </section>
+
+      {/* Sport, league, market... across every book of this currency. */}
+      <SplitBy rows={groupRows} filtered={filtered} currency={currency} accountNames={accountNames} />
     </>
   )
 }

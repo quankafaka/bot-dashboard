@@ -16,6 +16,52 @@ import BeforeAfter from './BeforeAfter'
 // tab -- the limit rule never applied to model bets.
 export default function Performance({ rows, filters, setFilters, currency, accountNames, basis = 'pinnacle', showBeforeAfter = true }) {
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
+  const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
+  const s = useMemo(() => summarize(filtered), [filtered])
+  const series = useMemo(() => cumulative(filtered), [filtered])
+  const luck = s.profit - s.expected
+
+  return (
+    <>
+      <Filters rows={rows} filters={filters} setFilters={setFilters} accountNames={accountNames} />
+
+      <div className="cards">
+        <Card label="Profit" value={money(s.profit, currency, { sign: true })} valueTone={tone(s.profit)}
+          sub={s.bets ? `${money(Math.abs(luck), currency)} ${luck >= 0 ? 'above' : 'below'} expected` : 'No settled bets'} />
+        <Card label="Bets" value={s.bets.toLocaleString('en-CA')}
+          sub={`${s.openCount} open, ${money(s.openStake, currency)} at risk`} />
+        <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
+        <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
+          sub="Profit over settled handle" />
+        <Card label={<Hint term={term('Expected yield')}>Expected yield</Hint>} value={pct(s.expYield, { digits: 2 })}
+          valueTone={tone(s.expYield)}
+          sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
+      </div>
+
+      <section className="panel">
+        <header className="panel-head">
+          <div>
+            <h2>Profit and bets</h2>
+            <p className="muted">Actual against expected profit, one step per settled bet</p>
+          </div>
+        </header>
+        <ProfitChart data={series} currency={currency}
+          expectedLabel={basis === 'model' ? 'Expected profit (model price)' : 'Expected profit (CLV)'} />
+      </section>
+
+      <SplitBy rows={rows} filtered={filtered} currency={currency} accountNames={accountNames} basis={basis} />
+
+      {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
+      {showBeforeAfter && filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
+    </>
+  )
+}
+
+// The "Split by" table: performance by sport, league, market and the rest.
+// rows decides which splits are offered (so a filter never hides a button);
+// filtered is what gets added up. Also on the Overall page, across books.
+export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = 'pinnacle' }) {
+  const term = (t) => (basis === 'model' ? `${t} (model)` : t)
   // Avg CLV is always Pinnacle's close; only the beat column follows the switch.
   const beatOf = (g) => (basis === 'model' ? g.beatModel : g.beatClose)
   const [dim, setDim] = useState('sport')
@@ -31,16 +77,12 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   const hasLimits = rows.some((r) => r.pin_limit != null)
   const limitView = dim === 'limit'
   const shownDim = (!hasLimits && limitView) ? 'sport' : dim
-  const filtered = useMemo(() => applyFilters(rows, filters), [rows, filters])
-  const s = useMemo(() => summarize(filtered), [filtered])
-  const series = useMemo(() => cumulative(filtered), [filtered])
   // A nested split (Market by sport): each market, then its sports.
   const table = useMemo(() => (nested ? breakdownNested(filtered, nested.outer, nested.inner)
     : breakdown(filtered, shownDim)), [filtered, shownDim, nested])
   const multiAccount = new Set(rows.map((r) => r.account)).size > 1
   // 'System' only means something once more than one system has bets here.
   const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
-  const luck = s.profit - s.expected
   // The split buttons, with each two-level split right after its outer one.
   const splitOptions = DIMENSIONS.filter((d) => (d.id !== 'account' || multiAccount)
     && (d.id !== 'strategy' || multiSystem)
@@ -76,95 +118,65 @@ export default function Performance({ rows, filters, setFilters, currency, accou
     </tr>
   )
 
+
   return (
-    <>
-      <Filters rows={rows} filters={filters} setFilters={setFilters} accountNames={accountNames} />
-
-      <div className="cards">
-        <Card label="Profit" value={money(s.profit, currency, { sign: true })} valueTone={tone(s.profit)}
-          sub={s.bets ? `${money(Math.abs(luck), currency)} ${luck >= 0 ? 'above' : 'below'} expected` : 'No settled bets'} />
-        <Card label="Bets" value={s.bets.toLocaleString('en-CA')}
-          sub={`${s.openCount} open, ${money(s.openStake, currency)} at risk`} />
-        <Card label="Handle" value={money(s.turnover, currency)} sub="Settled bets only" />
-        <Card label="Actual yield" value={pct(s.roi, { digits: 2 })} valueTone={tone(s.roi)}
-          sub="Profit over settled handle" />
-        <Card label={<Hint term={term('Expected yield')}>Expected yield</Hint>} value={pct(s.expYield, { digits: 2 })}
-          valueTone={tone(s.expYield)}
-          sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
-      </div>
-
-      <section className="panel">
-        <header className="panel-head">
-          <div>
-            <h2>Profit and bets</h2>
-            <p className="muted">Actual against expected profit, one step per settled bet</p>
-          </div>
-        </header>
-        <ProfitChart data={series} currency={currency}
-          expectedLabel={basis === 'model' ? 'Expected profit (model price)' : 'Expected profit (CLV)'} />
-      </section>
-
-      <section className="panel">
-        <header className="panel-head">
-          <h2>Split by</h2>
-          <div className="seg" role="group" aria-label="Split by">
-            {splitOptions.map((d) => (
-              <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
-                onClick={() => setDim(d.id)}>{d.label}</button>
-            ))}
-          </div>
-        </header>
-        {hasLimits && limitView && (
-          <p className="muted split-note">
-            Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest.
-          </p>
-        )}
-        {mobile ? (
-          <div className="day-list">
+    <section className="panel">
+      <header className="panel-head">
+        <h2>Split by</h2>
+        <div className="seg" role="group" aria-label="Split by">
+          {splitOptions.map((d) => (
+            <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
+              onClick={() => setDim(d.id)}>{d.label}</button>
+          ))}
+        </div>
+      </header>
+      {hasLimits && limitView && (
+        <p className="muted split-note">
+          Pinnacle's limit on the bet's market when it was taken. The bot reads it for soccer; pdropper's logged limit covers the rest.
+        </p>
+      )}
+      {mobile ? (
+        <div className="day-list">
+          {table.map((g) => (nested ? (
+            <Fragment key={g.key}>
+              {groupRow(g, g.key, 'group')}
+              {g.children.map((c) => groupRow(c, innerLabel(c.key), 'child'))}
+            </Fragment>
+          ) : groupRow(g, rowLabel(g.key))))}
+          {table.length === 0 && <p className="muted pad-s">No settled bets match these filters.</p>}
+        </div>
+      ) : (
+      <div className="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">{splitOptions.find((d) => d.id === shownDim)?.label ?? 'Group'}</th>
+              <th scope="col" className="num">Bets</th>
+              <th scope="col" className="num">Handle</th>
+              <th scope="col" className="num">Profit</th>
+              <th scope="col" className="num">Actual yield</th>
+              <th scope="col" className="num"><Hint term={term('Expected yield')}>Expected yield</Hint></th>
+              <th scope="col" className="num"><Hint term={term('Expected profit')}>Expected profit</Hint></th>
+              <th scope="col" className="num"><Hint term="Avg CLV">Avg CLV</Hint></th>
+              <th scope="col" className="num">
+                <Hint term={term('Beat close')}>{basis === 'model' ? 'Beat model' : 'Beat close'}</Hint>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
             {table.map((g) => (nested ? (
               <Fragment key={g.key}>
-                {groupRow(g, g.key, 'group')}
-                {g.children.map((c) => groupRow(c, innerLabel(c.key), 'child'))}
+                {tableRow(g, g.key, 'group')}
+                {g.children.map((c) => tableRow(c, innerLabel(c.key), 'child'))}
               </Fragment>
-            ) : groupRow(g, rowLabel(g.key))))}
-            {table.length === 0 && <p className="muted pad-s">No settled bets match these filters.</p>}
-          </div>
-        ) : (
-        <div className="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th scope="col">{splitOptions.find((d) => d.id === shownDim)?.label ?? 'Group'}</th>
-                <th scope="col" className="num">Bets</th>
-                <th scope="col" className="num">Handle</th>
-                <th scope="col" className="num">Profit</th>
-                <th scope="col" className="num">Actual yield</th>
-                <th scope="col" className="num"><Hint term={term('Expected yield')}>Expected yield</Hint></th>
-                <th scope="col" className="num"><Hint term={term('Expected profit')}>Expected profit</Hint></th>
-                <th scope="col" className="num"><Hint term="Avg CLV">Avg CLV</Hint></th>
-                <th scope="col" className="num">
-                  <Hint term={term('Beat close')}>{basis === 'model' ? 'Beat model' : 'Beat close'}</Hint>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {table.map((g) => (nested ? (
-                <Fragment key={g.key}>
-                  {tableRow(g, g.key, 'group')}
-                  {g.children.map((c) => tableRow(c, innerLabel(c.key), 'child'))}
-                </Fragment>
-              ) : tableRow(g, rowLabel(g.key))))}
-              {table.length === 0 && (
-                <tr><td colSpan={9} className="muted">No settled bets match these filters.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-        )}
-      </section>
-
-      {/* The limit rule only ran on BetInAsian, so its before / after does too. */}
-      {showBeforeAfter && filters.book === LIMIT_RULE_BOOK && <BeforeAfter rows={rows} filters={filters} currency={currency} />}
-    </>
+            ) : tableRow(g, rowLabel(g.key))))}
+            {table.length === 0 && (
+              <tr><td colSpan={9} className="muted">No settled bets match these filters.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      )}
+    </section>
   )
 }

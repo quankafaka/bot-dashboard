@@ -533,7 +533,7 @@ export function weekStart(ymd) {
 
 // Handle and wager count include bets still open; profit, yield and CLV only
 // count settled ones, so an open bet never drags yield down.
-function dayStats(rs) {
+export function dayStats(rs) {
   const graded = rs.filter((r) => r.status === 'graded')
   const withClv = graded.filter((r) => r.clv_pct != null)
   const settledHandle = sum(graded.map((r) => r.stake))
@@ -563,6 +563,20 @@ export function week(rows, start) {
     days: days.map((date) => ({ date, ...dayStats(byDay.get(date)) })),
     total: dayStats(days.flatMap((d) => byDay.get(d))),
   }
+}
+
+// Every Monday-to-Sunday week with a bet in it, newest first: dayStats over
+// the week's bets, as a book's Weekly tab shows them. Weeks with no bets at
+// all are left out.
+export function weeks(rows) {
+  const byWeek = new Map()
+  for (const r of rows) {
+    if (!r.placed_date_local) continue
+    const k = weekStart(r.placed_date_local)
+    if (!byWeek.has(k)) byWeek.set(k, [])
+    byWeek.get(k).push(r)
+  }
+  return [...byWeek].sort(([a], [b]) => b.localeCompare(a)).map(([start, rs]) => ({ start, ...dayStats(rs) }))
 }
 
 // Balance = starting balance + profit of every settled bet placed since the

@@ -13,7 +13,7 @@ const short = (v, currency) => money(v, currency).replace(/\.\d\d$/, '')
 
 // The Overall Pending tab's handle chart (handleSeries): handle placed over
 // the range, every system together, with the range before laid under it,
-// point for point. The day is a smooth line (the one before dashed); the
+// point for point. The day is a running total (the one before dashed); the
 // week is a bar per day, this week's narrow and bright in
 // front of last week's wide and faded, each on its own axis so they overlap
 // instead of standing side by side.
@@ -79,8 +79,10 @@ function Tip({ active, payload, currency, range, before }) {
   const { step, buckets, window } = range
   const span = step * buckets
   const week = range.id === '7d'
-  // A day point is its own day; a 24-hour point is the hour up to the end of its step.
-  const when = (ms) => (week ? day(ms) : `${hour(ms + step - window * step)} to ${hour(ms + step)}`)
+  // A day point is its own day; a cumulative point runs up to the end of its step.
+  const when = (ms) => (week ? day(ms)
+    : range.cumulative ? `${day(ms + step - span)}, ${hour(ms + step - span)} to ${day(ms + step).replace(/,.*/, '')} ${hour(ms + step)}`
+    : `${hour(ms + step - window * step)} to ${hour(ms + step)}`)
   const bets = (n) => `${n} ${n === 1 ? 'bet' : 'bets'}`
   const change = p.prevHandle ? Math.round((p.handle / p.prevHandle - 1) * 100) : null
   return (

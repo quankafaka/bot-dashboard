@@ -207,6 +207,8 @@ export const EXPOSURE_DIMENSIONS = [
   { id: 'sport', label: 'Sport', key: (r) => r.sport },
   { id: 'league', label: 'League', key: (r) => r.league },
   { id: 'market', label: 'Market', key: (r) => marketLabel(r) },
+  // Each market, then its sports under it (children).
+  { id: 'market_sport', label: 'Market by sport', key: (r) => marketLabel(r), inner: 'sport' },
   { id: 'game', label: 'Game', key: gameKey },
   // Only offered when the tab shows more than one website.
   { id: 'book', label: 'Website', key: (r) => r.book },
@@ -240,6 +242,7 @@ export function exposure(rows, dimId) {
     evLog: stakeWeighted(rs, 'ev_pct_log'),
     evNow: stakeWeighted(rs, 'current_ev_pct'),
     game: dimId === 'game' ? rs[0] : null,
+    children: dim.inner ? exposure(rs, dim.inner) : null,
   }))
   if (dimId === 'game') {
     return out.sort((a, b) => (a.game.startMs ?? Infinity) - (b.game.startMs ?? Infinity) || b.handle - a.handle)
@@ -255,20 +258,21 @@ export const exposureKey = (dimId, r) => EXPOSURE_DIMENSIONS.find((d) => d.id ==
 // week by Montreal calendar day.
 const HOUR = 3_600_000
 export const HANDLE_RANGES = [
-  { id: '24h', label: '24 hours', step: HOUR / 6, buckets: 144, window: 6 },
+  { id: '24h', label: '24 hours', step: HOUR / 6, buckets: 144, window: 1, cumulative: true },
   { id: '7d', label: '7 days', step: 24 * HOUR, buckets: 7, window: 1 },
 ]
 
 // One point per step of the range, oldest first, the step now running last:
-// the stake put down in the `window` steps up to and including it (the hour
-// to then, for the day; the day itself, for the week).
+// the stake put down in the `window` steps up to and including it (the day
+// itself, for the week), or, for a cumulative range (the day), everything
+// put down since the range began, up to the end of that step.
 // prevHandle / prevBets are the same point one range earlier, to lay over it.
 // handle / bets / prevHandle on the result are the whole range's totals.
 // Every bet placed counts, whatever has become of it since. Steps start on
 // the local clock: offsetMs is the zone's offset from UTC (-4 h in Montreal
 // summer).
 export function handleSeries(rows, rangeId, now = Date.now(), offsetMs = 0) {
-  const { step, buckets, window } = HANDLE_RANGES.find((r) => r.id === rangeId)
+  const { step, buckets, window, cumulative } = HANDLE_RANGES.find((r) => r.id === rangeId)
   const span = step * buckets
   const last = Math.floor((now + offsetMs) / step) * step - offsetMs
   const first = last - (buckets - 1) * step
@@ -291,7 +295,7 @@ export function handleSeries(rows, rangeId, now = Date.now(), offsetMs = 0) {
     if (r.placedMs >= first) { totals.handle += r.stake ?? 0; totals.bets += 1 }
     else if (r.placedMs >= first - span) totals.prevHandle += r.stake ?? 0
   }
-  const roll = (raw, i, k) => raw.slice(i, i + window).reduce((t, b) => t + b[k], 0)
+  const roll = (raw, i, k) => raw.slice(cumulative ? 0 : i, i + window).reduce((t, b) => t + b[k], 0)
   const points = Array.from({ length: buckets }, (_, i) => ({
     ms: first + i * step,
     handle: round2(roll(cur, i, 'handle')),

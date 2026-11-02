@@ -237,7 +237,7 @@ table.fit .keep { white-space: nowrap; }
 }
 .search input::placeholder { color: var(--muted-2); }
 /* Overall Pending's month chart: month and year. */
-.pickers { display: flex; gap: 6px; }
+.pickers { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .pickers select {
   font: inherit; color: var(--text); padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px;
   background: var(--panel); cursor: pointer;

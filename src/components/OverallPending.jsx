@@ -48,13 +48,16 @@ export default function OverallPending({ rows, books, accountNames }) {
   const evLog = stakeWeighted(open, 'ev_pct_log')
   const evNow = stakeWeighted(open, 'current_ev_pct')
   // Every bet these websites placed in the range and the one before, settled or not.
+  // 'month' shows the calendar month chart below in the same panel instead.
   const [range, setRange] = useState('24h')
+  const isMonth = range === 'month'
   const series = useMemo(() => {
+    if (isMonth) return { points: [], handle: 0, bets: 0, prevHandle: 0 }
     const on = new Set(sites)
     const now = Date.now()
     return handleSeries(rows.filter((r) => on.has(r.book)), range, now, zoneOffsetMs(now))
-  }, [rows, sites, range])
-  const rangeLabel = HANDLE_RANGES.find((r) => r.id === range).label
+  }, [rows, sites, range, isMonth])
+  const rangeLabel = HANDLE_RANGES.find((r) => r.id === range)?.label
   const { handle: placed, bets: placedBets, prevHandle: prevPlaced } = series
   // A calendar month's running total, against the month before.
   const thisMonth = localToday().slice(0, 7)
@@ -75,7 +78,8 @@ export default function OverallPending({ rows, books, accountNames }) {
   const pending = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return open
-      .filter((r) => !focus || exposureKey(focus.dim, r) === focus.key)
+      .filter((r) => !focus || (exposureKey(focus.dim, r) === focus.key
+        && (!focus.child || exposureKey(focus.inner, r) === focus.child)))
       .filter((r) => !needle || `${r.home_team} ${r.away_team} ${r.league} ${r.selection}`.toLowerCase().includes(needle))
       .sort((a, b) => b.placedMs - a.placedMs)
   }, [open, q, focus])
@@ -97,9 +101,13 @@ export default function OverallPending({ rows, books, accountNames }) {
   }
   const pickAll = (g) => { setFocus(null); setShown(PAGE); setSites(g.books.map((b) => b.name)) }
   const pickDim = (id) => { setDim(id); setFocus(null) }
-  const pickGroup = (g, label) => {
+  // A child row (a sport under its market) narrows to both.
+  const pickGroup = (g, label, parent) => {
     setShown(PAGE)
-    setFocus((f) => (f?.dim === dim && f.key === g.key ? null : { dim, key: g.key, label }))
+    const next = parent
+      ? { dim, key: parent.key, inner: EXPOSURE_DIMENSIONS.find((d) => d.id === dim).inner, child: g.key, label: `${parent.key}, ${label}` }
+      : { dim, key: g.key, label }
+    setFocus((f) => (f?.dim === next.dim && f.key === next.key && f.child === next.child ? null : next))
   }
   const dims = EXPOSURE_DIMENSIONS.filter((d) => d.id !== 'book' || multiSite)
   const shownDim = dims.some((d) => d.id === dim) ? dim : 'sport'
@@ -108,7 +116,11 @@ export default function OverallPending({ rows, books, accountNames }) {
   const groupSub = (g) => (g.game
     ? `${g.game.league}${g.game.start_time ? `, starts ${when(g.game.start_time, bookZone(g.game.book))}` : ''}`
     : null)
-  const isFocus = (g) => focus?.dim === shownDim && focus.key === g.key
+  const isFocus = (g, parent) => focus?.dim === shownDim
+    && (parent ? focus.key === parent.key && focus.child === g.key : focus.key === g.key && !focus.child)
+  // Group rows, each followed by its children when the split nests.
+  const lines = split.flatMap((g) => [{ g }, ...(g.children ?? []).map((c) => ({ g: c, parent: g }))])
+  const lineClass = ({ g, parent }) => (parent ? 'child' : g.children ? 'group' : '')
 
   return (
     <section>
@@ -162,9 +174,9 @@ export default function OverallPending({ rows, books, accountNames }) {
         </header>
         {narrow ? (
           <div className="day-list">
-            {split.map((g) => (
-              <button key={g.key} className={`day-row pick ${isFocus(g) ? 'today' : ''}`}
-                aria-pressed={isFocus(g)} onClick={() => pickGroup(g, groupLabel(g))}>
+            {lines.map(({ g, parent }) => (
+              <button key={`${parent?.key ?? ''}|${g.key}`} className={`day-row pick ${lineClass({ g, parent })} ${isFocus(g, parent) ? 'today' : ''}`}
+                aria-pressed={isFocus(g, parent)} onClick={() => pickGroup(g, groupLabel(g), parent)}>
                 <div>
                   <div className="day-name">{groupLabel(g)}</div>
                   <div className="sub">{groupSub(g) ?? `${g.bets} bets`}</div>
@@ -194,12 +206,12 @@ export default function OverallPending({ rows, books, accountNames }) {
               </tr>
             </thead>
             <tbody>
-              {split.map((g) => (
-                <tr key={g.key} className={`pick ${isFocus(g) ? 'today' : ''}`}
-                  onClick={() => pickGroup(g, groupLabel(g))}>
+              {lines.map(({ g, parent }) => (
+                <tr key={`${parent?.key ?? ''}|${g.key}`} className={`pick ${lineClass({ g, parent })} ${isFocus(g, parent) ? 'today' : ''}`}
+                  onClick={() => pickGroup(g, groupLabel(g), parent)}>
                   <th scope="row">
-                    <button className="link" aria-pressed={isFocus(g)}
-                      onClick={(e) => { e.stopPropagation(); pickGroup(g, groupLabel(g)) }}>
+                    <button className="link" aria-pressed={isFocus(g, parent)}
+                      onClick={(e) => { e.stopPropagation(); pickGroup(g, groupLabel(g), parent) }}>
                       {groupLabel(g)}
                     </button>
                     {groupSub(g) && <span className="sub">{groupSub(g)}</span>}
@@ -238,47 +250,50 @@ export default function OverallPending({ rows, books, accountNames }) {
 
       <section className="panel">
         <header className="panel-head">
-          <div>
-            <h2>Handle, last {rangeLabel}</h2>
-            <p className="muted">
-              Placed {range === '24h' ? 'per hour, every 10 minutes' : 'per day'}, every system together: {money(placed, currency)} on {placedBets.toLocaleString('en-CA')} {placedBets === 1 ? 'bet' : 'bets'},
-              against {money(prevPlaced, currency)} the {rangeLabel} before
-              {prevPlaced > 0 && ` (${pct((placed / prevPlaced - 1) * 100, { digits: 0 })})`}
-            </p>
-          </div>
-          <div className="seg" role="group" aria-label="Chart range">
-            {HANDLE_RANGES.map((r) => (
-              <button key={r.id} className={range === r.id ? 'on' : ''} aria-pressed={range === r.id}
-                onClick={() => setRange(r.id)}>{r.label}</button>
-            ))}
-          </div>
-        </header>
-        <HandleChart data={series.points} currency={currency} range={range} />
-      </section>
-
-      <section className="panel">
-        <header className="panel-head">
-          <div>
-            <h2>Handle, {monthName(ym)} {ym.slice(0, 4)}</h2>
-            <p className="muted">
-              Running total, every system together: {money(month.handle, currency)} on {month.bets.toLocaleString('en-CA')} {month.bets === 1 ? 'bet' : 'bets'},
-              against {money(month.prevHandle, currency)} in {monthName(prevMonth(ym))}
-            </p>
-          </div>
+          {isMonth ? (
+            <div>
+              <h2>Handle, {monthName(ym)} {ym.slice(0, 4)}</h2>
+              <p className="muted">
+                Running total, every system together: {money(month.handle, currency)} on {month.bets.toLocaleString('en-CA')} {month.bets === 1 ? 'bet' : 'bets'},
+                against {money(month.prevHandle, currency)} in {monthName(prevMonth(ym))}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <h2>Handle, last {rangeLabel}</h2>
+              <p className="muted">
+                Placed {range === '24h' ? 'so far, running total' : 'per day'}, every system together: {money(placed, currency)} on {placedBets.toLocaleString('en-CA')} {placedBets === 1 ? 'bet' : 'bets'},
+                against {money(prevPlaced, currency)} the {rangeLabel} before
+                {prevPlaced > 0 && ` (${pct((placed / prevPlaced - 1) * 100, { digits: 0 })})`}
+              </p>
+            </div>
+          )}
           <div className="pickers">
-            <select aria-label="Month" value={ym.slice(5)} onChange={(e) => pickYm(ym.slice(0, 4), e.target.value)}>
-              {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => (
-                <option key={m} value={m} disabled={`${ym.slice(0, 4)}-${m}` > thisMonth}>
-                  {monthName(`2000-${m}`)}
-                </option>
+            <div className="seg" role="group" aria-label="Chart range">
+              {[...HANDLE_RANGES, { id: 'month', label: 'Month' }].map((r) => (
+                <button key={r.id} className={range === r.id ? 'on' : ''} aria-pressed={range === r.id}
+                  onClick={() => setRange(r.id)}>{r.label}</button>
               ))}
-            </select>
-            <select aria-label="Year" value={ym.slice(0, 4)} onChange={(e) => pickYm(e.target.value, ym.slice(5))}>
-              {years.map((y) => <option key={y} value={y}>{y}</option>)}
-            </select>
+            </div>
+            {isMonth && (
+              <>
+                <select aria-label="Month" value={ym.slice(5)} onChange={(e) => pickYm(ym.slice(0, 4), e.target.value)}>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map((m) => (
+                    <option key={m} value={m} disabled={`${ym.slice(0, 4)}-${m}` > thisMonth}>
+                      {monthName(`2000-${m}`)}
+                    </option>
+                  ))}
+                </select>
+                <select aria-label="Year" value={ym.slice(0, 4)} onChange={(e) => pickYm(e.target.value, ym.slice(5))}>
+                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </>
+            )}
           </div>
         </header>
-        <MonthChart data={month.points} currency={currency} ym={ym} pm={prevMonth(ym)} />
+        {isMonth
+          ? <MonthChart data={month.points} currency={currency} ym={ym} pm={prevMonth(ym)} />
+          : <HandleChart data={series.points} currency={currency} range={range} />}
       </section>
 
       <div className="search">

@@ -8,7 +8,7 @@ import Hint from './Hint'
 // When a game starts, from now: "in 2h 10m", or Live once it has.
 function startsIn(ms, now) {
   if (ms == null) return null
-  const min = Math.round((ms - now) / 60_000)
+  const min = Math.ceil((ms - now) / 60_000)
   if (min <= 0) return 'Live'
   if (min < 60) return `in ${min}m`
   if (min < 24 * 60) return `in ${Math.floor(min / 60)}h ${min % 60}m`
@@ -69,6 +69,7 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
           <th scope="col" className="num">Odds</th>
           <th scope="col" className="num">At risk</th>
           <th scope="col" className="num">To win</th>
+          <th scope="col" className="num"><Hint term="EV at log, weighted">EV at log</Hint></th>
           <th scope="col" className="num"><Hint term="EV now, weighted">EV now</Hint></th>
           {multiBook && <th scope="col">Website</th>}
         </tr>
@@ -82,6 +83,7 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
             <td className="num">{p.odds ? fmt(p.odds) : '—'}</td>
             <td className="num">{money(p.handle, currency)}</td>
             <td className="num">{money(p.toWin, currency)}</td>
+            <td className={`num ${tone(p.evLog)}`}>{pct(p.evLog, { digits: 2 })}</td>
             <td className={`num ${tone(p.evNow)}`}>{pct(p.evNow, { digits: 2 })}</td>
             {multiBook && <td>{p.books.join(', ')}</td>}
           </tr>
@@ -152,6 +154,7 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
                   <div className="day-fig">
                     <div className="bc-money">{money(g.handle, currency)}</div>
                     <div className="sub">{g.bets} bets, to win {money(g.toWin, currency)}</div>
+                    <div className="sub">EV {pct(g.evLog)} at log, {pct(g.evNow)} now</div>
                   </div>
                 </button>
                 {open.has(g.key) && g.positions.map((p) => (
@@ -163,6 +166,7 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
                     <div className="day-fig">
                       <div className="bc-money">{money(p.handle, currency)}</div>
                       <div className="sub">to win {money(p.toWin, currency)}</div>
+                      <div className="sub">EV {pct(p.evLog)} at log, {pct(p.evNow)} now</div>
                     </div>
                   </div>
                 ))}
@@ -181,6 +185,7 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
                 {cols.map((c) => <th key={c} scope="col" className="num">{c}</th>)}
                 <th scope="col" className="num">At risk</th>
                 <th scope="col" className="num">To win</th>
+                <th scope="col" className="num"><Hint term="EV at log, weighted">EV at log</Hint></th>
                 <th scope="col" className="num"><Hint term="EV now, weighted">EV now</Hint></th>
               </tr>
             </thead>
@@ -203,15 +208,16 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
                     {cols.map((c) => <td key={c} className="num">{g.byMarket[c] ? money(g.byMarket[c], currency) : ''}</td>)}
                     <td className="num strong">{money(g.handle, currency)}</td>
                     <td className="num">{money(g.toWin, currency)}</td>
+                    <td className={`num ${tone(g.evLog)}`}>{pct(g.evLog, { digits: 2 })}</td>
                     <td className={`num ${tone(g.evNow)}`}>{pct(g.evNow, { digits: 2 })}</td>
                   </tr>
                   {open.has(g.key) && (
-                    <tr className="detail"><td colSpan={cols.length + 6}>{positions(g)}</td></tr>
+                    <tr className="detail"><td colSpan={cols.length + 7}>{positions(g)}</td></tr>
                   )}
                 </Fragment>
               ))}
               {games.length === 0 && (
-                <tr><td colSpan={cols.length + 6} className="muted">{q ? `No game matches “${q}”.` : 'No open bets right now.'}</td></tr>
+                <tr><td colSpan={cols.length + 7} className="muted">{q ? `No game matches “${q}”.` : 'No open bets right now.'}</td></tr>
               )}
             </tbody>
           </table>

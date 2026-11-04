@@ -206,7 +206,6 @@ const gameKey = (r) => `${r.home_team} v ${r.away_team}|${r.start_time ?? ''}`
 
 export const EXPOSURE_DIMENSIONS = [
   { id: 'sport', label: 'Sport', key: (r) => r.sport },
-  { id: 'league', label: 'League', key: (r) => r.league },
   { id: 'market', label: 'Market', key: (r) => marketLabel(r) },
   // Games have a page of their own (Risk by game); kept here for counting.
   { id: 'game', label: 'Game', key: gameKey },
@@ -265,6 +264,7 @@ function position(rs) {
   return {
     bets: rs.length, handle, toWin: win,
     odds: handle ? 1 + win / handle : null,          // stake-weighted, as a decimal price
+    evLog: stakeWeighted(rs, 'ev_pct_log'),
     evNow: stakeWeighted(rs, 'current_ev_pct'),
     books: [...new Set(rs.map((r) => r.book))],
   }

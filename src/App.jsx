@@ -9,6 +9,7 @@ import Pending from './components/Pending'
 import Graded from './components/Graded'
 import Daily from './components/Daily'
 import Weekly, { Weeks } from './components/Weekly'
+import RiskByGame from './components/RiskByGame'
 import Models from './components/Models'
 import PatchNotes from './components/PatchNotes'
 import Overall from './components/Overall'
@@ -244,9 +245,9 @@ function Dashboard({ email }) {
   // 'include bets the bot did not record' switch would only hide all of them.
   const logOnly = bookRows.length > 0 && !bookRows.some((r) => r.source === 'bot')
   const viewFilters = logOnly ? { ...filters, includeManual: true } : filters
-  // Overall has only its Overview, Daily, Weekly and Pending; a book's other
-  // tabs show its Overview there.
-  const view = overall ? (['daily', 'weekly', 'pending'].includes(tab) ? tab : 'performance')
+  // Overall has only its Overview, Daily, Weekly, Pending and Risk by game; a
+  // book's other tabs show its Overview there.
+  const view = overall ? (['daily', 'weekly', 'pending', 'risk'].includes(tab) ? tab : 'performance')
     : tab === 'models' && !showModels ? 'performance' : tab
   const openCount = (overall ? rows ?? [] : bookRows).filter((r) => r.status === 'pending').length
   // Open bets per book, for the sportsbook menu.
@@ -256,11 +257,12 @@ function Dashboard({ email }) {
     return n
   }, [rows])
   const allOpen = Object.values(openCounts).reduce((a, b) => a + b, 0)
-  const tabs = overall ? [['performance', 'Overview'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['pending', 'Pending']] : [
+  const tabs = overall ? [['performance', 'Overview'], ['daily', 'Daily'], ['weekly', 'Weekly'], ['pending', 'Pending'], ['risk', 'Risk by game']] : [
     ['performance', 'Overview'],
     ['daily', 'Daily'],
     ['weekly', 'Weekly'],
     ['pending', 'Pending'],
+    ['risk', 'Risk by game'],
     ['graded', 'Graded'],
     ...(showModels ? [['models', 'NFL / CFB']] : []),
     ['notes', <><span className="long">Patch notes</span><span className="short">Notes</span></>],
@@ -346,6 +348,7 @@ function Dashboard({ email }) {
             {view === 'performance' && <Overall rows={rows} books={books} accountNames={accounts} />}
             {view === 'daily' && <OverallDaily rows={rows} books={books} />}
             {view === 'weekly' && <OverallDaily rows={rows} books={books} View={Weeks} />}
+            {view === 'risk' && <OverallDaily rows={rows} books={books} View={RiskByGame} />}
             {view === 'pending' && <OverallPending rows={rows} books={books} accountNames={accounts} />}
           </TabBoundary>
         </main>
@@ -367,6 +370,7 @@ function Dashboard({ email }) {
               currency={book.currency} accountNames={accounts} />
           )}
           {view === 'pending' && <Pending rows={bookRows} currency={book.currency} accountNames={accounts} />}
+          {view === 'risk' && <RiskByGame rows={bookRows} currency={book.currency} />}
           {view === 'graded' && <Graded rows={bookRows} currency={book.currency} accountNames={accounts} />}
           {view === 'notes' && <PatchNotes />}
           {view === 'models' && (

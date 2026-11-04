@@ -7,6 +7,7 @@ import HandleChart from './HandleChart'
 import MonthChart, { monthName } from './MonthChart'
 import Hint from './Hint'
 import { Card } from './Daily'
+import { SplitMenu } from './Performance'
 import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
 import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES, monthCumulative, prevMonth, placedMonths, localToday } from '../lib/metrics'
 
@@ -24,6 +25,8 @@ export default function OverallPending({ rows, books, accountNames }) {
   const [shown, setShown] = useState(PAGE)
   const [sites, setSites] = useState(() => currencyGroups(books)[0]?.books.map((b) => b.name) ?? [])
   const [dim, setDim] = useState('sport')
+  const [inner, setInner] = useState(null) // Split by: a second level, folded until its group is clicked
+  const [unfolded, setUnfolded] = useState(() => new Set())
   const [focus, setFocus] = useState(null) // { dim, key, label } of the clicked group
   const mobile = useIsMobile(BET_TABLE_QUERY)
   const narrow = useIsMobile()
@@ -41,10 +44,12 @@ export default function OverallPending({ rows, books, accountNames }) {
     const on = new Set(sites)
     return rows.filter((r) => r.status === 'finished' && on.has(r.book))
   }, [rows, sites])
-  const split = useMemo(() => exposure(open, dim), [open, dim])
+  const dims = EXPOSURE_DIMENSIONS.filter((d) => d.id !== 'game' && (d.id !== 'book' || sites.length > 1))
+  const shownDim = dims.some((d) => d.id === dim) ? dim : 'sport'
+  const shownInner = inner !== shownDim && dims.some((d) => d.id === inner) ? inner : null
+  const split = useMemo(() => exposure(open, shownDim, shownInner), [open, shownDim, shownInner])
   const handle = open.reduce((t, r) => t + (r.stake ?? 0), 0)
   const win = open.reduce((t, r) => t + toWin(r), 0)
-  const games = useMemo(() => exposure(open, 'game').length, [open])
   const evLog = stakeWeighted(open, 'ev_pct_log')
   const evNow = stakeWeighted(open, 'current_ev_pct')
   // Every bet these websites placed in the range and the one before, settled or not.
@@ -100,17 +105,26 @@ export default function OverallPending({ rows, books, accountNames }) {
     })
   }
   const pickAll = (g) => { setFocus(null); setShown(PAGE); setSites(g.books.map((b) => b.name)) }
-  const pickDim = (id) => { setDim(id); setFocus(null) }
-  // A child row (a sport under its market) narrows to both.
+  const pickDim = (id) => { setDim(id); setFocus(null); setUnfolded(new Set()) }
+  const pickInner = (id) => { setInner(id); setFocus(null); setUnfolded(new Set()) }
+  // A child row (a sport under its market) narrows to both. A group with
+  // children also opens or folds them.
   const pickGroup = (g, label, parent) => {
     setShown(PAGE)
     const next = parent
-      ? { dim, key: parent.key, inner: EXPOSURE_DIMENSIONS.find((d) => d.id === dim).inner, child: g.key, label: `${parent.key}, ${label}` }
-      : { dim, key: g.key, label }
-    setFocus((f) => (f?.dim === next.dim && f.key === next.key && f.child === next.child ? null : next))
+      ? { dim: shownDim, key: parent.key, inner: shownInner, child: g.key, label: `${parent.key}, ${label}` }
+      : { dim: shownDim, key: g.key, label }
+    const same = focus?.dim === next.dim && focus.key === next.key && focus.child === next.child
+    setFocus(same ? null : next)
+    if (!parent && g.children) {
+      setUnfolded((o) => {
+        const n = new Set(o)
+        if (same) n.delete(g.key)
+        else n.add(g.key)
+        return n
+      })
+    }
   }
-  const dims = EXPOSURE_DIMENSIONS.filter((d) => d.id !== 'book' || multiSite)
-  const shownDim = dims.some((d) => d.id === dim) ? dim : 'sport'
 
   const groupLabel = (g) => (g.game ? `${g.game.home_team} v ${g.game.away_team}` : g.key)
   const groupSub = (g) => (g.game
@@ -119,7 +133,9 @@ export default function OverallPending({ rows, books, accountNames }) {
   const isFocus = (g, parent) => focus?.dim === shownDim
     && (parent ? focus.key === parent.key && focus.child === g.key : focus.key === g.key && !focus.child)
   // Group rows, each followed by its children when the split nests.
-  const lines = split.flatMap((g) => [{ g }, ...(g.children ?? []).map((c) => ({ g: c, parent: g }))])
+  const lines = split.flatMap((g) => [{ g },
+    ...(unfolded.has(g.key) ? g.children ?? [] : []).map((c) => ({ g: c, parent: g }))])
+  const fold = (g) => g.children && <span className="fold" aria-hidden="true">{unfolded.has(g.key) ? '▾' : '▸'}</span>
   const lineClass = ({ g, parent }) => (parent ? 'child' : g.children ? 'group' : '')
 
   return (
@@ -145,19 +161,7 @@ export default function OverallPending({ rows, books, accountNames }) {
         </section>
       )}
 
-      <div className="cards wide">
-        <Card label="Open bets" value={open.length.toLocaleString('en-CA')}
-          sub={`On ${games} ${games === 1 ? 'game' : 'games'}`} />
-        <Card label="Handle" value={money(handle, currency)} sub="Staked on open bets" />
-        <Card label="To win" value={money(win, currency)} valueTone={win ? 'pos' : ''}
-          sub="Profit if every open bet wins" />
-        <Card label="Payout" value={money(handle + win, currency)} sub="Handle plus to win" />
-        <Card label="Avg odds" value={handle ? fmt(1 + win / handle) : '—'} sub="Stake-weighted" />
-        <Card label={<Hint term="EV at log, weighted">EV at log</Hint>} value={pct(evLog, { digits: 2 })}
-          valueTone={tone(evLog)} sub="Stake-weighted, when each bet went in" />
-        <Card label={<Hint term="EV now, weighted">EV now</Hint>} value={pct(evNow, { digits: 2 })}
-          valueTone={tone(evNow)} sub="Stake-weighted, at today's Pinnacle line" />
-      </div>
+      <OpenCards open={open} currency={currency} />
 
       <section className="panel">
         <header className="panel-head">
@@ -165,11 +169,15 @@ export default function OverallPending({ rows, books, accountNames }) {
             <h2>What is riding where</h2>
             <p className="muted">Click a row to list only its bets below</p>
           </div>
-          <div className="seg" role="group" aria-label="Split by">
-            {dims.map((d) => (
-              <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
-                onClick={() => pickDim(d.id)}>{d.label}</button>
-            ))}
+          <div className="pickers">
+            <div className="seg" role="group" aria-label="Group by">
+              {dims.map((d) => (
+                <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
+                  onClick={() => pickDim(d.id)}>{d.label}</button>
+              ))}
+            </div>
+            <SplitMenu value={shownInner} onChange={pickInner}
+              options={[{ id: null, label: 'Nothing' }, ...dims.filter((d) => d.id !== shownDim)]} />
           </div>
         </header>
         {narrow ? (
@@ -178,7 +186,7 @@ export default function OverallPending({ rows, books, accountNames }) {
               <button key={`${parent?.key ?? ''}|${g.key}`} className={`day-row pick ${lineClass({ g, parent })} ${isFocus(g, parent) ? 'today' : ''}`}
                 aria-pressed={isFocus(g, parent)} onClick={() => pickGroup(g, groupLabel(g), parent)}>
                 <div>
-                  <div className="day-name">{groupLabel(g)}</div>
+                  <div className="day-name">{fold(g)}{groupLabel(g)}</div>
                   <div className="sub">{groupSub(g) ?? `${g.bets} bets`}</div>
                 </div>
                 <div className="day-fig">
@@ -195,7 +203,7 @@ export default function OverallPending({ rows, books, accountNames }) {
           <table>
             <thead>
               <tr>
-                <th scope="col">{dims.find((d) => d.id === shownDim)?.label}</th>
+                <th scope="col">{[shownDim, shownInner].filter(Boolean).map((id) => dims.find((d) => d.id === id)?.label).join(' › ')}</th>
                 <th scope="col" className="num">Bets</th>
                 <th scope="col" className="num">Handle</th>
                 <th scope="col" className="num">Share</th>
@@ -212,7 +220,7 @@ export default function OverallPending({ rows, books, accountNames }) {
                   <th scope="row">
                     <button className="link" aria-pressed={isFocus(g, parent)}
                       onClick={(e) => { e.stopPropagation(); pickGroup(g, groupLabel(g), parent) }}>
-                      {groupLabel(g)}
+                      {fold(g)}{groupLabel(g)}
                     </button>
                     {groupSub(g) && <span className="sub">{groupSub(g)}</span>}
                   </th>
@@ -382,5 +390,31 @@ export default function OverallPending({ rows, books, accountNames }) {
         </button>
       )}
     </section>
+  )
+}
+
+// The key numbers on the open bets: count, handle, to win, payout, odds and
+// EV. On Overall's Pending tab and on each book's.
+export function OpenCards({ open, currency }) {
+  const fmt = useOdds()
+  const handle = open.reduce((t, r) => t + (r.stake ?? 0), 0)
+  const win = open.reduce((t, r) => t + toWin(r), 0)
+  const games = useMemo(() => exposure(open, 'game').length, [open])
+  const evLog = stakeWeighted(open, 'ev_pct_log')
+  const evNow = stakeWeighted(open, 'current_ev_pct')
+  return (
+    <div className="cards wide">
+      <Card label="Open bets" value={open.length.toLocaleString('en-CA')}
+        sub={`On ${games} ${games === 1 ? 'game' : 'games'}`} />
+      <Card label="Handle" value={money(handle, currency)} sub="Staked on open bets" />
+      <Card label="To win" value={money(win, currency)} valueTone={win ? 'pos' : ''}
+        sub="Profit if every open bet wins" />
+      <Card label="Payout" value={money(handle + win, currency)} sub="Handle plus to win" />
+      <Card label="Avg odds" value={handle ? fmt(1 + win / handle) : '—'} sub="Stake-weighted" />
+      <Card label={<Hint term="EV at log, weighted">EV at log</Hint>} value={pct(evLog, { digits: 2 })}
+        valueTone={tone(evLog)} sub="Stake-weighted, when each bet went in" />
+      <Card label={<Hint term="EV now, weighted">EV now</Hint>} value={pct(evNow, { digits: 2 })}
+        valueTone={tone(evNow)} sub="Stake-weighted, at today's Pinnacle line" />
+    </div>
   )
 }

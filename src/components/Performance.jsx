@@ -202,7 +202,7 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
 // The Split by pill: "Split by" beside it, shut "League" and a caret; open, the same menu
 // as the sportsbook picker (picker-menu). Arrow keys move, Enter picks,
 // Escape or a click elsewhere closes.
-function SplitMenu({ value, onChange, options }) {
+export function SplitMenu({ value, onChange, options }) {
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(0)
   const wrap = useRef(null)

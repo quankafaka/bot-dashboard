@@ -208,8 +208,7 @@ export const EXPOSURE_DIMENSIONS = [
   { id: 'sport', label: 'Sport', key: (r) => r.sport },
   { id: 'league', label: 'League', key: (r) => r.league },
   { id: 'market', label: 'Market', key: (r) => marketLabel(r) },
-  // Each market, then its sports under it (children).
-  { id: 'market_sport', label: 'Market by sport', key: (r) => marketLabel(r), inner: 'sport' },
+  // Games have a page of their own (Risk by game); kept here for counting.
   { id: 'game', label: 'Game', key: gameKey },
   // Only offered when the tab shows more than one website.
   { id: 'book', label: 'Website', key: (r) => r.book },
@@ -226,8 +225,9 @@ export function stakeWeighted(rows, field) {
 
 // One row per group: bets, handle, to win, and the stake-weighted EV at log
 // and now. Games carry their teams, league and start for the label, and read
-// soonest first; the rest by handle.
-export function exposure(rows, dimId) {
+// soonest first; the rest by handle. innerId splits each group again
+// (children), e.g. each market, then its sports.
+export function exposure(rows, dimId, innerId = null) {
   const dim = EXPOSURE_DIMENSIONS.find((d) => d.id === dimId)
   const groups = new Map()
   for (const r of rows) {
@@ -243,12 +243,60 @@ export function exposure(rows, dimId) {
     evLog: stakeWeighted(rs, 'ev_pct_log'),
     evNow: stakeWeighted(rs, 'current_ev_pct'),
     game: dimId === 'game' ? rs[0] : null,
-    children: dim.inner ? exposure(rs, dim.inner) : null,
+    children: innerId ? exposure(rs, innerId) : null,
   }))
   if (dimId === 'game') {
     return out.sort((a, b) => (a.game.startMs ?? Infinity) - (b.game.startMs ?? Infinity) || b.handle - a.handle)
   }
   return out.sort((a, b) => b.handle - a.handle)
+}
+
+// ---- risk by game ----------------------------------------------------------
+// The Risk by game tab: every open bet's game, soonest first, its handle
+// split by market column, and its positions -- one per market, period, side
+// and line, so two bets on the same side and line add up.
+export const RISK_COLUMNS = ['Moneyline', 'Handicap', 'Total', 'Other']
+const riskColumn = (r) => (String(r.market_type).startsWith('moneyline') ? 'Moneyline'
+  : r.market_type === 'spread' ? 'Handicap' : r.market_type === 'total' ? 'Total' : 'Other')
+
+function position(rs) {
+  const handle = sum(rs.map((r) => r.stake ?? 0))
+  const win = sum(rs.map(toWin))
+  return {
+    bets: rs.length, handle, toWin: win,
+    odds: handle ? 1 + win / handle : null,          // stake-weighted, as a decimal price
+    evNow: stakeWeighted(rs, 'current_ev_pct'),
+    books: [...new Set(rs.map((r) => r.book))],
+  }
+}
+
+// The side without its line ("Gladsaxe BK -1.5" -> "Gladsaxe BK"), so a
+// game's positions read side by side, each side's lines in order.
+const side = (p) => String(p.selection ?? '').replace(/\s*[+-]?\d+(\.\d+)?$/, '')
+
+export function riskByGame(rows) {
+  const games = new Map()
+  for (const r of rows) {
+    const k = gameKey(r)
+    if (!games.has(k)) games.set(k, [])
+    games.get(k).push(r)
+  }
+  return [...games.entries()].map(([key, rs]) => {
+    const byMarket = Object.fromEntries(RISK_COLUMNS.map((c) => [c, 0]))
+    for (const r of rs) byMarket[riskColumn(r)] += r.stake ?? 0
+    const sides = new Map()
+    for (const r of rs) {
+      const k = [betLabel(r), r.selection, r.line ?? ''].join('|')
+      if (!sides.has(k)) sides.set(k, [])
+      sides.get(k).push(r)
+    }
+    const positions = [...sides.values()]
+      .map((ps) => ({ key: [betLabel(ps[0]), ps[0].selection, ps[0].line ?? ''].join('|'),
+        market: betLabel(ps[0]), selection: ps[0].selection, line: ps[0].line, ...position(ps) }))
+      .sort((a, b) => a.market.localeCompare(b.market) || side(a).localeCompare(side(b))
+        || (a.line ?? 0) - (b.line ?? 0))
+    return { key, game: rs[0], byMarket, positions, ...position(rs) }
+  }).sort((a, b) => (a.game.startMs ?? Infinity) - (b.game.startMs ?? Infinity) || b.handle - a.handle)
 }
 
 export const exposureKey = (dimId, r) => EXPOSURE_DIMENSIONS.find((d) => d.id === dimId).key(r) ?? '—'

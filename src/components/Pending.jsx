@@ -4,6 +4,7 @@ import { useOdds } from '../lib/odds'
 import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
 import BetCard from './BetCard'
 import Hint from './Hint'
+import { OpenCards } from './OverallPending'
 import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 
@@ -56,6 +57,8 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
           </div>
         </header>
       ) : (
+      <>
+      {status === 'pending' && <OpenCards open={open} currency={currency} />}
       <div className="search">
         <label htmlFor={`q-${status}`}>Find a bet</label>
         <input id={`q-${status}`} type="search" placeholder="Team, league or selection" value={q}
@@ -64,6 +67,7 @@ export default function Pending({ rows, currency, accountNames, status = 'pendin
           {pending.length.toLocaleString('en-CA')} {noun}, {money(atRisk, currency)} {done ? 'staked' : 'at risk'}
         </span>
       </div>
+      </>
       )}
       {mobile ? (
         <div className="cards-list">

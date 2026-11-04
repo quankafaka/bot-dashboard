@@ -500,3 +500,10 @@ th.split-head { text-align: center; color: var(--text); }
 @media (max-width: 700px) {
   .toasts { top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; width: auto; }
 }
+
+/* Risk by game: a game's positions open under its row. */
+tr.detail > td { padding: 4px 12px 14px 32px; background: var(--raised); }
+table.positions { width: 100%; }
+table.positions th, table.positions td { padding: 6px 10px; font-size: 13px; }
+td.strong { font-weight: 700; }
+.tag.live { color: var(--red); }

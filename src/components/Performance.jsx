@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { DIMENSIONS, LIMIT_RULE_BOOK, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
 import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
@@ -144,16 +144,8 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
                 onClick={() => { setDim(d.id); setOpen(new Set()) }}>{d.label}</button>
             ))}
           </div>
-          <label className="split-pick">
-            <span className="split-pick-label">Split by</span>
-            <select value={nested ?? ''} onChange={(e) => { setInner(e.target.value || null); setOpen(new Set()) }}>
-              <option value="">Nothing</option>
-              {splitOptions.filter((d) => d.id !== shownDim).map((d) => (
-                <option key={d.id} value={d.id}>{d.label}</option>
-              ))}
-            </select>
-            <span className="picker-caret" aria-hidden="true" />
-          </label>
+          <SplitMenu value={nested} onChange={(v) => { setInner(v); setOpen(new Set()) }}
+            options={[{ id: null, label: 'Nothing' }, ...splitOptions.filter((d) => d.id !== shownDim)]} />
         </div>
       </header>
       {hasLimits && limitView && (
@@ -204,5 +196,68 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
       </div>
       )}
     </section>
+  )
+}
+
+// The Split by pill: "Split by" beside it, shut "League" and a caret; open, the same menu
+// as the sportsbook picker (picker-menu). Arrow keys move, Enter picks,
+// Escape or a click elsewhere closes.
+function SplitMenu({ value, onChange, options }) {
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const wrap = useRef(null)
+  const button = useRef(null)
+  const current = options.find((o) => o.id === value) ?? options[0]
+
+  useEffect(() => {
+    if (!open) return undefined
+    const away = (e) => { if (!wrap.current?.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', away)
+    document.addEventListener('touchstart', away)
+    return () => {
+      document.removeEventListener('mousedown', away)
+      document.removeEventListener('touchstart', away)
+    }
+  }, [open])
+  useEffect(() => {
+    if (open) wrap.current?.querySelector(`[data-i="${active}"]`)?.focus()
+  }, [open, active])
+
+  const show = () => { setActive(Math.max(0, options.indexOf(current))); setOpen(true) }
+  const pick = (v) => { setOpen(false); button.current?.focus(); if (v !== value) onChange(v) }
+  const onKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(options.length - 1, i + 1)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(0, i - 1)) }
+    else if (e.key === 'Escape') { e.preventDefault(); setOpen(false); button.current?.focus() }
+    else if (e.key === 'Tab') setOpen(false)
+  }
+
+  return (
+    <div className="split-by">
+    <span className="split-pick-label" aria-hidden="true">Split by</span>
+    <div className="picker" ref={wrap}>
+      <button ref={button} type="button" className={`split-pick ${open ? 'open' : ''}`}
+        aria-haspopup="listbox" aria-expanded={open} aria-label={`Split by: ${current.label}`}
+        onClick={() => (open ? setOpen(false) : show())}
+        onKeyDown={(e) => { if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) { e.preventDefault(); show() } }}>
+        <span className="split-pick-value">{current.label}</span>
+        <span className="picker-caret" aria-hidden="true" />
+      </button>
+      {open && (
+        <ul className="picker-menu" role="listbox" aria-label="Split by" onKeyDown={onKey}>
+          {options.map((o, i) => (
+            <li key={o.id ?? 'none'} role="presentation">
+              <div role="option" tabIndex={-1} data-i={i} aria-selected={o.id === value}
+                className={`picker-opt ${o.id === value ? 'on' : ''} ${i === active ? 'active' : ''}`}
+                onMouseEnter={() => setActive(i)} onClick={() => pick(o.id)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(o.id) } }}>
+                <span className="picker-opt-name">{o.label}</span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+    </div>
   )
 }

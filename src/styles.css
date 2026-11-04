@@ -243,22 +243,18 @@ table.fit .keep { white-space: nowrap; }
   background: var(--panel); cursor: pointer;
 }
 /* Performance by: the second-level split next to the group buttons. */
-/* A pill like the .seg buttons: muted label, bold choice, the picker caret;
-   the select itself is native, so keyboard and phones work as usual. */
+/* The Split by pill (SplitMenu): muted label beside it, bold choice and the caret inside,
+   the height of the .seg row next to it; its menu is the picker's. */
 .split-pick {
-  position: relative; display: inline-flex; align-items: center; gap: 8px;
-  padding: 3px 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--raised);
-  cursor: pointer; transition: border-color 0.15s;
+  display: inline-flex; align-items: center; gap: 8px; height: 37px; padding: 0 14px;
+  border: 1px solid var(--border); border-radius: 7px; background: var(--raised);
+  color: var(--text); font: inherit; cursor: pointer; white-space: nowrap;
 }
-.split-pick:hover { border-color: var(--border-strong); }
-.split-pick:focus-within { border-color: var(--border-strong); box-shadow: 0 0 0 2px var(--raised-on); }
+.split-pick:hover, .split-pick.open { border-color: var(--border-strong); }
+.split-by { display: inline-flex; align-items: center; gap: 10px; }
 .split-pick-label { color: var(--muted); font-weight: 500; }
-.split-pick select {
-  appearance: none; border: 0; background: none; color: var(--text); font: inherit; font-weight: 700;
-  padding: 3px 18px 3px 0; cursor: pointer; outline: none;
-}
-.split-pick select option { background: var(--panel); color: var(--text); font-weight: 500; }
-.split-pick .picker-caret { position: absolute; right: 13px; pointer-events: none; }
+.split-pick-value { font-weight: 700; margin-right: 4px; }
+.split-pick.open .picker-caret { transform: rotate(-135deg); margin-top: 3px; }
 .fold { display: inline-block; width: 1.2em; color: var(--muted-2); }
 .more { display: block; margin: 14px auto 0; }
 /* Pending: the website buttons carry their currency like the book switcher;

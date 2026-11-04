@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { DIMENSIONS, NESTED_DIMENSIONS, LIMIT_RULE_BOOK, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
+import { DIMENSIONS, LIMIT_RULE_BOOK, ODDS_BAND_AMERICAN, applyFilters, summarize, cumulative, breakdown, breakdownNested } from '../lib/metrics'
 import { useOddsFormat } from '../lib/odds'
 import { money, pct, tone } from '../lib/format'
 import ProfitChart from './ProfitChart'
@@ -60,35 +60,49 @@ export default function Performance({ rows, filters, setFilters, currency, accou
 // The "Split by" table: performance by sport, league, market and the rest.
 // rows decides which splits are offered (so a filter never hides a button);
 // filtered is what gets added up. Also on the Overall page, across books.
-export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = 'pinnacle' }) {
+export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = 'pinnacle', initial = 'sport' }) {
   const term = (t) => (basis === 'model' ? `${t} (model)` : t)
   // Avg CLV is always Pinnacle's close; only the beat column follows the switch.
   const beatOf = (g) => (basis === 'model' ? g.beatModel : g.beatClose)
-  const [dim, setDim] = useState('sport')
+  const [dim, setDim] = useState(initial)
+  // The second level, e.g. Market then Sport (basketball moneyline); null = none.
+  const [inner, setInner] = useState(null)
+  // Nested groups start folded; clicking one shows its inner rows.
+  const [open, setOpen] = useState(() => new Set())
+  const toggle = (k) => setOpen((o) => {
+    const n = new Set(o)
+    if (n.has(k)) n.delete(k)
+    else n.add(k)
+    return n
+  })
   const mobile = useIsMobile()
   const { format: oddsFormat } = useOddsFormat()
-  const nested = NESTED_DIMENSIONS.find((d) => d.id === dim)
   const rowLabel = (key, d = dim) => {
     if (d === 'account') return accountNames[key] ?? key
-    if (dim === 'odds' && oddsFormat === 'american') return ODDS_BAND_AMERICAN[key] ?? key
+    if (d === 'odds' && oddsFormat === 'american') return ODDS_BAND_AMERICAN[key] ?? key
     return key
   }
   // Before `table`, which uses shownDim. The limit splits only once v_wager_limit (migration 009) has data.
   const hasLimits = rows.some((r) => r.pin_limit != null)
   const limitView = dim === 'limit'
   const shownDim = (!hasLimits && limitView) ? 'sport' : dim
-  // A nested split (Market by sport): each market, then its sports.
-  const table = useMemo(() => (nested ? breakdownNested(filtered, nested.outer, nested.inner)
+  const nested = inner && inner !== shownDim && (inner !== 'limit' || hasLimits) ? inner : null
+  // A nested split: each group of shownDim, then its rows split by `nested`.
+  const table = useMemo(() => (nested ? breakdownNested(filtered, shownDim, nested)
     : breakdown(filtered, shownDim)), [filtered, shownDim, nested])
   const multiAccount = new Set(rows.map((r) => r.account)).size > 1
+  const multiBook = new Set(rows.map((r) => r.book)).size > 1
   // 'System' only means something once more than one system has bets here.
   const multiSystem = new Set(rows.map((r) => r.strategy ?? null)).size > 1
-  // The split buttons, with each two-level split right after its outer one.
-  const splitOptions = DIMENSIONS.filter((d) => (d.id !== 'account' || multiAccount)
+  const splitOptions = DIMENSIONS.filter((d) => d.id !== 'source' && (d.id !== 'book' || multiBook) && (d.id !== 'account' || multiAccount)
     && (d.id !== 'strategy' || multiSystem)
     && (!d.needsLimits || hasLimits))
-    .flatMap((d) => [d, ...NESTED_DIMENSIONS.filter((n) => n.outer === d.id)])
-  const innerLabel = (key) => rowLabel(key, nested?.inner)
+  const innerLabel = (key) => rowLabel(key, nested)
+  const groupLabel = (g) => (
+    <button className="link" aria-expanded={open.has(g.key)} onClick={() => toggle(g.key)}>
+      <span className="fold" aria-hidden="true">{open.has(g.key) ? '▾' : '▸'}</span>{rowLabel(g.key)}
+    </button>
+  )
   const groupRow = (g, label, className = '') => (
     <div key={`${className}${g.key}`} className={`day-row ${className}`}>
       <div>
@@ -122,12 +136,23 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
   return (
     <section className="panel">
       <header className="panel-head">
-        <h2>Split by</h2>
-        <div className="seg" role="group" aria-label="Split by">
-          {splitOptions.map((d) => (
-            <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
-              onClick={() => setDim(d.id)}>{d.label}</button>
-          ))}
+        <h2>Performance by</h2>
+        <div className="pickers">
+          <div className="seg" role="group" aria-label="Group by">
+            {splitOptions.map((d) => (
+              <button key={d.id} className={shownDim === d.id ? 'on' : ''} aria-pressed={shownDim === d.id}
+                onClick={() => { setDim(d.id); setOpen(new Set()) }}>{d.label}</button>
+            ))}
+          </div>
+          <label className="split-pick">
+            <span className="muted">Split by</span>
+            <select value={nested ?? ''} onChange={(e) => { setInner(e.target.value || null); setOpen(new Set()) }}>
+              <option value="">Nothing</option>
+              {splitOptions.filter((d) => d.id !== shownDim).map((d) => (
+                <option key={d.id} value={d.id}>{d.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
       </header>
       {hasLimits && limitView && (
@@ -139,8 +164,8 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
         <div className="day-list">
           {table.map((g) => (nested ? (
             <Fragment key={g.key}>
-              {groupRow(g, g.key, 'group')}
-              {g.children.map((c) => groupRow(c, innerLabel(c.key), 'child'))}
+              {groupRow(g, groupLabel(g), 'group')}
+              {open.has(g.key) && g.children.map((c) => groupRow(c, innerLabel(c.key), 'child'))}
             </Fragment>
           ) : groupRow(g, rowLabel(g.key))))}
           {table.length === 0 && <p className="muted pad-s">No settled bets match these filters.</p>}
@@ -150,7 +175,7 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
         <table>
           <thead>
             <tr>
-              <th scope="col">{splitOptions.find((d) => d.id === shownDim)?.label ?? 'Group'}</th>
+              <th scope="col">{[shownDim, nested].filter(Boolean).map((id) => splitOptions.find((d) => d.id === id)?.label).join(' › ')}</th>
               <th scope="col" className="num">Bets</th>
               <th scope="col" className="num">Handle</th>
               <th scope="col" className="num">Profit</th>
@@ -166,8 +191,8 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
           <tbody>
             {table.map((g) => (nested ? (
               <Fragment key={g.key}>
-                {tableRow(g, g.key, 'group')}
-                {g.children.map((c) => tableRow(c, innerLabel(c.key), 'child'))}
+                {tableRow(g, groupLabel(g), 'group')}
+                {open.has(g.key) && g.children.map((c) => tableRow(c, innerLabel(c.key), 'child'))}
               </Fragment>
             ) : tableRow(g, rowLabel(g.key))))}
             {table.length === 0 && (

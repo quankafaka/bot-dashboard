@@ -141,6 +141,7 @@ export const STRATEGY_LABEL = {
 export const isModel = (r) => MODEL_STRATEGIES.includes(r.strategy)
 
 export const DIMENSIONS = [
+  { id: 'book', label: 'Book', key: (r) => r.book },
   { id: 'sport', label: 'Sport', key: (r) => r.sport },
   { id: 'league', label: 'League', key: (r) => r.league },
   { id: 'country', label: 'Country', key: (r) => r.country },

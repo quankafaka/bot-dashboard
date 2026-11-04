@@ -145,13 +145,14 @@ export function SplitBy({ rows, filtered, currency, accountNames = {}, basis = '
             ))}
           </div>
           <label className="split-pick">
-            <span className="muted">Split by</span>
+            <span className="split-pick-label">Split by</span>
             <select value={nested ?? ''} onChange={(e) => { setInner(e.target.value || null); setOpen(new Set()) }}>
               <option value="">Nothing</option>
               {splitOptions.filter((d) => d.id !== shownDim).map((d) => (
                 <option key={d.id} value={d.id}>{d.label}</option>
               ))}
             </select>
+            <span className="picker-caret" aria-hidden="true" />
           </label>
         </div>
       </header>

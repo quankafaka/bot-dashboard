@@ -15,7 +15,8 @@ function startsIn(ms, now) {
   return `in ${Math.round(min / (24 * 60))}d`
 }
 
-// The Risk by game tab: the open bets one game at a time, soonest first, with
+// The Risk by game tab: the open bets one game at a time, soonest first (or
+// biggest at risk first), with
 // the handle on each market and, clicked, the positions on it by side and
 // line (same side and line added up). toolbar() draws the row above:
 // Overall's currency switch; nothing on a book's page.
@@ -24,15 +25,17 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
   const mobile = useIsMobile()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(() => new Set())
+  const [sort, setSort] = useState('start') // 'start': soonest first; 'risk': biggest at risk first
   const now = Date.now()
 
   const all = useMemo(() => riskByGame(rows.filter((r) => r.status === 'pending')), [rows])
   const games = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    return needle
+    const hit = needle
       ? all.filter((g) => `${g.game.home_team} ${g.game.away_team} ${g.game.league} ${g.game.sport}`.toLowerCase().includes(needle))
       : all
-  }, [all, q])
+    return sort === 'risk' ? [...hit].sort((a, b) => b.handle - a.handle) : hit
+  }, [all, q, sort])
   // A market column only when some game has money on it.
   const cols = RISK_COLUMNS.filter((c) => all.some((g) => g.byMarket[c] > 0))
   const multiBook = new Set(all.flatMap((g) => g.books)).size > 1
@@ -118,11 +121,21 @@ export default function RiskByGame({ rows, currency, toolbar = () => null }) {
         <header className="panel-head">
           <div>
             <h2>Risk by game</h2>
-            <p className="muted">Soonest first. Click a game for its positions by side and line.</p>
+            <p className="muted">
+              {sort === 'risk' ? 'Biggest at risk first' : 'Soonest first'}. Click a game for its positions by side and line.
+            </p>
+          </div>
+          <div className="pickers">
+          <div className="seg" role="group" aria-label="Sort games">
+            {[['start', 'Soonest'], ['risk', 'Biggest at risk']].map(([id, label]) => (
+              <button key={id} className={sort === id ? 'on' : ''} aria-pressed={sort === id}
+                onClick={() => setSort(id)}>{label}</button>
+            ))}
           </div>
           <div className="search">
             <input type="search" aria-label="Find a game" placeholder="Team, league or sport" value={q}
               onChange={(e) => setQ(e.target.value)} />
+          </div>
           </div>
         </header>
         {mobile ? (

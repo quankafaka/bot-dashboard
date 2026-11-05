@@ -1,34 +1,24 @@
 import { useMemo, useState } from 'react'
-import { money, pct, tone, betTime, multiAccount, when, bookZone, zoneOffsetMs } from '../lib/format'
+import { money, pct, tone, when, bookZone, zoneOffsetMs } from '../lib/format'
 import { useOdds } from '../lib/odds'
-import AlertCell, { MoveCell, LimitCell, hasLimits } from './AlertCell'
-import BetCard from './BetCard'
 import HandleChart from './HandleChart'
 import MonthChart, { monthName } from './MonthChart'
 import Hint from './Hint'
 import { Card } from './Daily'
 import { SplitMenu } from './Performance'
-import { useIsMobile, BET_TABLE_QUERY } from '../lib/useIsMobile'
-import { betLabel, SOURCE_LABEL, EXPOSURE_DIMENSIONS, exposure, exposureKey, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES, monthCumulative, prevMonth, placedMonths, localToday } from '../lib/metrics'
-
-const PAGE = 100
+import { useIsMobile } from '../lib/useIsMobile'
+import { EXPOSURE_DIMENSIONS, exposure, toWin, currencyGroups, stakeWeighted, handleSeries, HANDLE_RANGES, monthCumulative, prevMonth, placedMonths, localToday } from '../lib/metrics'
 
 // The Overall page's Pending tab: every website's open bets. On top, what is
-// riding where: handle and to win split by sport, market, game or website,
-// for one website or several of the same currency (every website of the
-// first currency to start with). Clicking a group narrows the bet list under
-// it to that group. The list is the book Pending tab's, newest placed first,
-// with a Website column when more than one website is shown.
+// riding where: handle and to win split by sport, market or website, for one
+// website or several of the same currency (every website of the first
+// currency to start with), then the handle placed over time. No bet list:
+// Risk by game has the positions.
 export default function OverallPending({ rows, books, accountNames }) {
-  const [q, setQ] = useState('')
-  const fmt = useOdds()
-  const [shown, setShown] = useState(PAGE)
   const [sites, setSites] = useState(() => currencyGroups(books)[0]?.books.map((b) => b.name) ?? [])
   const [dim, setDim] = useState('sport')
   const [inner, setInner] = useState(null) // Split by: a second level, folded until its group is clicked
   const [unfolded, setUnfolded] = useState(() => new Set())
-  const [focus, setFocus] = useState(null) // { dim, key, label } of the clicked group
-  const mobile = useIsMobile(BET_TABLE_QUERY)
   const narrow = useIsMobile()
 
   const currency = books.find((b) => b.name === sites[0])?.currency
@@ -37,12 +27,6 @@ export default function OverallPending({ rows, books, accountNames }) {
   const open = useMemo(() => {
     const on = new Set(sites)
     return rows.filter((r) => r.status === 'pending' && on.has(r.book))
-  }, [rows, sites])
-  // Game over, result not in yet (migration 015): not riding, so out of
-  // every figure here; only counted under the bet list.
-  const finished = useMemo(() => {
-    const on = new Set(sites)
-    return rows.filter((r) => r.status === 'finished' && on.has(r.book))
   }, [rows, sites])
   const dims = EXPOSURE_DIMENSIONS.filter((d) => d.id !== 'game' && (d.id !== 'book' || sites.length > 1))
   const shownDim = dims.some((d) => d.id === dim) ? dim : 'sport'
@@ -78,25 +62,9 @@ export default function OverallPending({ rows, books, accountNames }) {
   // Picking a year keeps the month, unless that month has not come yet.
   const pickYm = (y, m) => setYm(`${y}-${m}` > thisMonth ? thisMonth : `${y}-${m}`)
 
-  const showLimit = hasLimits(open)
-  const showAccount = multiAccount(open)
-  const pending = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    return open
-      .filter((r) => !focus || (exposureKey(focus.dim, r) === focus.key
-        && (!focus.child || exposureKey(focus.inner, r) === focus.child)))
-      .filter((r) => !needle || `${r.home_team} ${r.away_team} ${r.league} ${r.selection}`.toLowerCase().includes(needle))
-      .sort((a, b) => b.placedMs - a.placedMs)
-  }, [open, q, focus])
-  const atRisk = pending.reduce((t, r) => t + (r.stake ?? 0), 0)
-  const empty = open.length === 0 ? 'No open bets right now.'
-    : q ? `No open bets match “${q}”.` : 'No open bets in this group.'
-
   // A website of another currency starts a new selection: CAD and USD never
   // add up. Within a currency, websites toggle, never down to none.
   const pickSite = (name) => {
-    setFocus(null)
-    setShown(PAGE)
     const ccy = books.find((b) => b.name === name)?.currency
     setSites((s) => {
       if (ccy !== currency) return [name]
@@ -104,34 +72,24 @@ export default function OverallPending({ rows, books, accountNames }) {
       return s.length > 1 ? s.filter((x) => x !== name) : s
     })
   }
-  const pickAll = (g) => { setFocus(null); setShown(PAGE); setSites(g.books.map((b) => b.name)) }
-  const pickDim = (id) => { setDim(id); setFocus(null); setUnfolded(new Set()) }
-  const pickInner = (id) => { setInner(id); setFocus(null); setUnfolded(new Set()) }
-  // A child row (a sport under its market) narrows to both. A group with
-  // children also opens or folds them.
-  const pickGroup = (g, label, parent) => {
-    setShown(PAGE)
-    const next = parent
-      ? { dim: shownDim, key: parent.key, inner: shownInner, child: g.key, label: `${parent.key}, ${label}` }
-      : { dim: shownDim, key: g.key, label }
-    const same = focus?.dim === next.dim && focus.key === next.key && focus.child === next.child
-    setFocus(same ? null : next)
-    if (!parent && g.children) {
-      setUnfolded((o) => {
-        const n = new Set(o)
-        if (same) n.delete(g.key)
-        else n.add(g.key)
-        return n
-      })
-    }
+  const pickAll = (g) => { setSites(g.books.map((b) => b.name)) }
+  const pickDim = (id) => { setDim(id); setUnfolded(new Set()) }
+  const pickInner = (id) => { setInner(id); setUnfolded(new Set()) }
+  // A group with children opens or folds them.
+  const pickGroup = (g, parent) => {
+    if (parent || !g.children) return
+    setUnfolded((o) => {
+      const n = new Set(o)
+      if (n.has(g.key)) n.delete(g.key)
+      else n.add(g.key)
+      return n
+    })
   }
 
   const groupLabel = (g) => (g.game ? `${g.game.home_team} v ${g.game.away_team}` : g.key)
   const groupSub = (g) => (g.game
     ? `${g.game.league}${g.game.start_time ? `, starts ${when(g.game.start_time, bookZone(g.game.book))}` : ''}`
     : null)
-  const isFocus = (g, parent) => focus?.dim === shownDim
-    && (parent ? focus.key === parent.key && focus.child === g.key : focus.key === g.key && !focus.child)
   // Group rows, each followed by its children when the split nests.
   const lines = split.flatMap((g) => [{ g },
     ...(unfolded.has(g.key) ? g.children ?? [] : []).map((c) => ({ g: c, parent: g }))])
@@ -167,7 +125,7 @@ export default function OverallPending({ rows, books, accountNames }) {
         <header className="panel-head">
           <div>
             <h2>What is riding where</h2>
-            <p className="muted">Click a row to list only its bets below</p>
+            <p className="muted">Click a group to open what is under it</p>
           </div>
           <div className="pickers">
             <div className="seg" role="group" aria-label="Group by">
@@ -183,8 +141,8 @@ export default function OverallPending({ rows, books, accountNames }) {
         {narrow ? (
           <div className="day-list">
             {lines.map(({ g, parent }) => (
-              <button key={`${parent?.key ?? ''}|${g.key}`} className={`day-row pick ${lineClass({ g, parent })} ${isFocus(g, parent) ? 'today' : ''}`}
-                aria-pressed={isFocus(g, parent)} onClick={() => pickGroup(g, groupLabel(g), parent)}>
+              <button key={`${parent?.key ?? ''}|${g.key}`} className={`day-row pick ${lineClass({ g, parent })}`}
+                aria-expanded={g.children ? unfolded.has(g.key) : undefined} onClick={() => pickGroup(g, parent)}>
                 <div>
                   <div className="day-name">{fold(g)}{groupLabel(g)}</div>
                   <div className="sub">{groupSub(g) ?? `${g.bets} bets`}</div>
@@ -215,11 +173,11 @@ export default function OverallPending({ rows, books, accountNames }) {
             </thead>
             <tbody>
               {lines.map(({ g, parent }) => (
-                <tr key={`${parent?.key ?? ''}|${g.key}`} className={`pick ${lineClass({ g, parent })} ${isFocus(g, parent) ? 'today' : ''}`}
-                  onClick={() => pickGroup(g, groupLabel(g), parent)}>
+                <tr key={`${parent?.key ?? ''}|${g.key}`} className={`pick ${lineClass({ g, parent })}`}
+                  onClick={() => pickGroup(g, parent)}>
                   <th scope="row">
-                    <button className="link" aria-pressed={isFocus(g, parent)}
-                      onClick={(e) => { e.stopPropagation(); pickGroup(g, groupLabel(g), parent) }}>
+                    <button className="link" aria-expanded={g.children ? unfolded.has(g.key) : undefined}
+                      onClick={(e) => { e.stopPropagation(); pickGroup(g, parent) }}>
                       {fold(g)}{groupLabel(g)}
                     </button>
                     {groupSub(g) && <span className="sub">{groupSub(g)}</span>}
@@ -304,91 +262,6 @@ export default function OverallPending({ rows, books, accountNames }) {
           : <HandleChart data={series.points} currency={currency} range={range} />}
       </section>
 
-      <div className="search">
-        <label htmlFor="q-pending">Find a bet</label>
-        <input id="q-pending" type="search" placeholder="Team, league or selection" value={q}
-          onChange={(e) => { setQ(e.target.value); setShown(PAGE) }} />
-        {focus && (
-          <button className="btn chip" onClick={() => setFocus(null)} aria-label={`Show all, not only ${focus.label}`}>
-            {focus.label} <span aria-hidden="true">×</span>
-          </button>
-        )}
-        <span className="muted">
-          {pending.length.toLocaleString('en-CA')} open, {money(atRisk, currency)} at risk
-          {finished.length > 0 && `; ${finished.length.toLocaleString('en-CA')} finished, ${
-            money(finished.reduce((t, r) => t + (r.stake ?? 0), 0), currency)} waiting for a result`}
-        </span>
-      </div>
-      {mobile ? (
-        <div className="cards-list">
-          {pending.slice(0, shown).map((r) => (
-            <BetCard key={r.wager_id} r={r} currency={currency} accountNames={accountNames}
-              showAccount={showAccount} showBook={multiSite} mode="pending" />
-          ))}
-          {pending.length === 0 && <p className="muted">{empty}</p>}
-        </div>
-      ) : (
-      <div className="scroll fit">
-        <table className="fit">
-          <thead>
-            <tr>
-              <th scope="col">Placed</th>
-              {multiSite && <th scope="col">Website</th>}
-              <th scope="col">Game</th>
-              <th scope="col">Bet</th>
-              <th scope="col">Move</th>
-              <th scope="col">Alert</th>
-              {showLimit && <th scope="col" className="num">Pinnacle limit</th>}
-              <th scope="col" className="num">Odds</th>
-              <th scope="col" className="num">At risk</th>
-              <th scope="col" className="num">To win</th>
-              <th scope="col" className="num"><Hint term="EV at log, per bet">EV at log</Hint></th>
-              <th scope="col" className="num"><Hint term="EV now">EV now</Hint></th>
-              {showAccount && <th scope="col">Account</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {pending.slice(0, shown).map((r) => (
-              <tr key={r.wager_id}>
-                <td className="keep">{betTime(r)}</td>
-                {multiSite && <td>{r.book}</td>}
-                <td className="long">
-                  <div>{r.home_team} v {r.away_team}</div>
-                  <div className="sub">
-                    {r.league}{r.start_time && `, starts ${when(r.start_time, bookZone(r.book))}`}
-                  </div>
-                </td>
-                <td className="long">
-                  <div>{r.selection}</div>
-                  <div className="sub">
-                    {betLabel(r)}
-                    {r.source !== 'bot' && <span className="tag">{SOURCE_LABEL[r.source] ?? r.source}</span>}
-                    {r.is_freebet && <span className="tag">Free bet</span>}
-                  </div>
-                </td>
-                <MoveCell r={r} />
-                <AlertCell r={r} />
-                {showLimit && <LimitCell r={r} />}
-                <td className="num">{fmt(r.price_filled)}</td>
-                <td className="num">{money(r.stake, currency)}</td>
-                <td className="num">{money(toWin(r), currency)}</td>
-                <td className={`num ${tone(r.ev_pct_log)}`}>{pct(r.ev_pct_log)}</td>
-                <td className={`num ${tone(r.current_ev_pct)}`}>{pct(r.current_ev_pct)}</td>
-                {showAccount && <td>{accountNames[r.account] ?? r.account}</td>}
-              </tr>
-            ))}
-            {pending.length === 0 && (
-              <tr><td colSpan={10 + (multiSite ? 1 : 0) + (showLimit ? 1 : 0) + (showAccount ? 1 : 0)} className="muted">{empty}</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      )}
-      {pending.length > shown && (
-        <button className="more" onClick={() => setShown((n) => n + PAGE)}>
-          Show {Math.min(PAGE, pending.length - shown)} more
-        </button>
-      )}
     </section>
   )
 }

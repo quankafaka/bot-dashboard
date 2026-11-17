@@ -182,8 +182,8 @@ function Dashboard({ email }) {
     }
   }, [])
 
-  // Loads once when the dashboard opens; after that only the Refresh button
-  // reloads the full history, which is what was using up the Supabase egress
+  // Loads once when the dashboard opens; Refresh (below) then reads only
+  // the bets that can still change -- the full history is what was using up the Supabase egress
   // quota. The timer below asks only for bets placed since the newest one
   // here, which is usually nothing.
   useEffect(() => {
@@ -215,6 +215,40 @@ function Dashboard({ email }) {
       console.warn('New-bet check failed; the next one, or Refresh, tries again.', e)
     }
   }, [books])
+
+  // Refresh once bets are here: settled bets do not change, so re-read only
+  // the bets placed since the oldest open one (results, closing prices) plus
+  // anything new. Re-read bets keep their side-view facts; new ones fetch them.
+  // shortcut: one very old open bet (a future) makes this close to a full
+  // load; reloading the page still reads everything, books and balances too.
+  const refresh = useCallback(async () => {
+    const have = rowsRef.current
+    if (!have?.length || !books?.length) return load()
+    setLoading(true)
+    try {
+      const newest = have.reduce((m, r) => Math.max(m, r.placedMs || 0), 0)
+      const since = have.reduce((m, r) => (r.status === 'pending' ? Math.min(m, r.placedMs) : m), newest)
+      const allowed = new Set(books.map((x) => x.name))
+      const got = (await fetchWagers({ since: new Date(since).toISOString() })).filter((r) => allowed.has(r.book))
+      const old = new Map(have.map((r) => [r.wager_id, r]))
+      const added = got.filter((r) => !old.has(r.wager_id))
+      if (added.length) {
+        const ids = added.map((r) => r.wager_id)
+        enrich(added, await Promise.all([fetchStrategies(ids), fetchLimits(ids), fetchModelPrices(ids), fetchDevig(ids), fetchLatency(ids)]))
+      }
+      const next = new Map(got.map((r) => [r.wager_id, old.has(r.wager_id) ? { ...old.get(r.wager_id), ...r } : r]))
+      setRows((cur) => {
+        const ids = new Set(cur.map((r) => r.wager_id))
+        return [...cur.map((r) => next.get(r.wager_id) ?? r), ...[...next.values()].filter((r) => !ids.has(r.wager_id))]
+      })
+      setError(null)
+      setLoadedAt(new Date())
+    } catch (e) {
+      setError(e.message || String(e))
+    } finally {
+      setLoading(false)
+    }
+  }, [books, load])
 
   useEffect(() => {
     const timer = setInterval(checkNew, 30_000)
@@ -312,7 +346,7 @@ function Dashboard({ email }) {
             <span className={`dot ${error ? 'bad' : ''}`} aria-hidden="true" />
             {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
           </span>
-          <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+          <button className="btn" onClick={refresh} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
           {!isPublic && <button className="btn" onClick={() => supabase.auth.signOut()} title={email}>Sign out</button>}
         </div>
         {/* Phones: the same controls, folded into one button. */}
@@ -324,7 +358,7 @@ function Dashboard({ email }) {
               <span className={`dot ${error ? 'bad' : ''}`} aria-hidden="true" />
               {loadedAt ? `Updated ${loadedAt.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit' })}` : 'Loading'}
             </span>
-            <button className="btn" onClick={load} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
+            <button className="btn" onClick={refresh} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
             {!isPublic && <button className="btn" onClick={() => supabase.auth.signOut()}>Sign out {email}</button>}
           </div>
         </details>

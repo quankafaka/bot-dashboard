@@ -51,7 +51,7 @@ export default function Performance({ rows, filters, setFilters, currency, accou
           sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
         {lat.n > 0 && (
           <Card label="Latency" value={`${lat.seen.toFixed(1)}s`}
-            sub={`Median, alert seen to Confirm${lat.click != null ? `; ${lat.click.toFixed(1)}s of it clicking` : ''}. ${lat.n} steam bets`} />
+            sub={`Median, alert seen to Confirm${lat.click != null ? `; ${lat.click.toFixed(1)}s of it clicking` : ''}`} />
         )}
       </div>
 

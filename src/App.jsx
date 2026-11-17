@@ -229,7 +229,11 @@ function Dashboard({ email }) {
       const newest = have.reduce((m, r) => Math.max(m, r.placedMs || 0), 0)
       const since = have.reduce((m, r) => (r.status === 'pending' ? Math.min(m, r.placedMs) : m), newest)
       const allowed = new Set(books.map((x) => x.name))
-      const got = (await fetchWagers({ since: new Date(since).toISOString() })).filter((r) => allowed.has(r.book))
+      setProgress({ loaded: 0, total: null })
+      const got = (await fetchWagers({
+        since: new Date(since).toISOString(),
+        onProgress: (loaded, total) => setProgress({ loaded, total }),
+      })).filter((r) => allowed.has(r.book))
       const old = new Map(have.map((r) => [r.wager_id, r]))
       const added = got.filter((r) => !old.has(r.wager_id))
       if (added.length) {
@@ -372,6 +376,17 @@ function Dashboard({ email }) {
           </button>
         ))}
       </nav>
+
+      {/* Refresh with bets already shown: a thin bar along the top of the page. */}
+      {rows && loading && (
+        <div className={`loader-track refresh-bar ${progress.total ? '' : 'indeterminate'}`} role="progressbar"
+          aria-label="Refreshing wagers" aria-valuemin={0} aria-valuemax={progress.total ?? undefined}
+          aria-valuenow={progress.total ? progress.loaded : undefined}
+          title={progress.total ? `${progress.loaded.toLocaleString()} of ${progress.total.toLocaleString()} bets` : undefined}>
+          <div className="loader-fill"
+            style={{ width: progress.total ? `${Math.round((progress.loaded / progress.total) * 100)}%` : undefined }} />
+        </div>
+      )}
 
       {error && (
         <p className="error">

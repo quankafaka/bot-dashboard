@@ -513,4 +513,5 @@ td.strong { font-weight: 700; }
 .loader-count { margin-top: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .loader-count strong { color: var(--text); font-family: var(--mono); }
 @media (max-width: 600px) { .loader { margin: 40px 16px; } }
+.refresh-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; border-radius: 0; z-index: 100; background: transparent; }
 @media (prefers-reduced-motion: reduce) { .loader-fill { transition: none; animation: none !important; } }

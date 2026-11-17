@@ -1,7 +1,7 @@
 import { money, pct, tone, betTime } from '../lib/format'
 import { betLabel, SOURCE_LABEL } from '../lib/metrics'
 import { useOdds } from '../lib/odds'
-import { alertLabel, modelNote, DevigMove, hasDevig } from './AlertCell'
+import { alertLabel, modelNote, DevigMove, hasDevig, LatencyLine } from './AlertCell'
 import { limitMoney } from '../lib/format'
 import { limitRuleBand, limitRuleMinEv } from '../lib/metrics'
 import { Fragment } from 'react'
@@ -87,6 +87,12 @@ export default function BetCard({ r, currency, accountNames, mode, showAccount =
         <div className="bc-alert">
           <span className="bc-dim">De-vig</span>{' '}
           <DevigMove r={r} />
+        </div>
+      )}
+      {r.latency_seen_s != null && (
+        <div className="bc-alert">
+          <span className="bc-dim">Latency</span>{' '}
+          <LatencyLine r={r} />
         </div>
       )}
       <div className="bc-meta">

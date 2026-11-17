@@ -109,6 +109,23 @@ export function DevigMove({ r }) {
   )
 }
 
+// '6.2s to bet, 2.1s clicking': how long a steam bet took from the bot first
+// seeing the alert to the Confirm press, and the clicking part of it
+// (migration 018). Null when the bot did not record it.
+export function LatencyLine({ r }) {
+  if (r.latency_seen_s == null) return null
+  const title = 'From the bot first seeing the alert to pressing Confirm.'
+    + (r.latency_signal_s != null
+      ? ` From pdropper's alert time: ${r.latency_signal_s.toFixed(0)}s (that time is to the minute at best).`
+      : '')
+  return (
+    <span title={title}>
+      {r.latency_seen_s.toFixed(1)}s to bet
+      {r.latency_click_s != null && `, ${r.latency_click_s.toFixed(1)}s clicking`}
+    </span>
+  )
+}
+
 const hasMove = (r) => r.pin_price_before != null && r.pin_price_after != null
 
 export function MoveCell({ r }) {
@@ -137,6 +154,7 @@ export default function AlertCell({ r }) {
     <td className="long">
       {label && <div>{label}</div>}
       {devig && <div className="sub"><DevigMove r={r} /></div>}
+      {r.latency_seen_s != null && <div className="sub"><LatencyLine r={r} /></div>}
     </td>
   )
 }

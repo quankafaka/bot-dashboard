@@ -26,25 +26,29 @@ const NUMERIC = [...ALERT_COLUMNS,
   'line', 'price_filled', 'stake', 'to_return', 'ev_pct_bot', 'ev_pct_log',
   'clv_pct', 'expected_profit', 'current_ev_pct', 'profit']
 
-async function readAll(columns, since) {
+async function readAll(columns, since, onProgress) {
   const rows = []
+  let total = null
   for (let from = 0; ; from += PAGE) {
-    let q = table('v_wager').select(columns.join(','))
+    // The first page also asks for the total, so a progress bar can show it.
+    let q = table('v_wager').select(columns.join(','), from === 0 && onProgress ? { count: 'exact' } : undefined)
     if (since) q = q.gte('placed_at', since)
-    const { data, error } = await q
+    const { data, error, count } = await q
       .order('placed_at', { ascending: true })
       .order('wager_id', { ascending: true })
       .range(from, from + PAGE - 1)
     if (error) throw error
+    if (count != null) total = count
     rows.push(...data)
+    onProgress?.(rows.length, total)
     if (data.length < PAGE) break
   }
   return rows
 }
 
 // since: only the bets placed at or after that time (the new-bet check in
-// App), instead of the whole history.
-export async function fetchWagers({ since } = {}) {
+// App), instead of the whole history. onProgress(loaded, total) after each page.
+export async function fetchWagers({ since, onProgress } = {}) {
   const attempts = [
     [...BASE_COLUMNS, ...ALERT_COLUMNS, ...ALERT_SELECTION],
     [...BASE_COLUMNS, ...ALERT_COLUMNS],
@@ -53,7 +57,7 @@ export async function fetchWagers({ since } = {}) {
   let rows
   for (const columns of attempts) {
     try {
-      rows = await readAll(columns, since)
+      rows = await readAll(columns, since, onProgress)
       break
     } catch (e) {
       const missingColumn = e?.code === '42703' || /does not exist/i.test(e?.message ?? '')
@@ -180,6 +184,34 @@ export async function fetchDevig(ids) {
     if (data.length < PAGE) break
   }
   return devig
+}
+
+// How long each steam bet took to reach the Confirm press, in seconds, from
+// v_wager_latency (migration 018): from pdropper's alert time, from the bot
+// first seeing the alert, and from the betslip opening (the clicking alone).
+// Steam bets from 2026-11-10 on. Returns null, not an error, until the
+// migration has run.
+export async function fetchLatency(ids) {
+  const latency = new Map()
+  const n = (v) => (v == null ? null : Number(v))
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await only(table('v_wager_latency').select('wager_id,latency_signal_s,latency_seen_s,latency_click_s'), ids)
+      .order('wager_id', { ascending: true })
+      .range(from, from + PAGE - 1)
+    if (error) {
+      const missing = ['42P01', 'PGRST205'].includes(error.code)
+        || /does not exist|could not find/i.test(error.message ?? '')
+      if (missing) return null
+      throw error
+    }
+    for (const r of data) {
+      latency.set(r.wager_id, {
+        signal: n(r.latency_signal_s), seen: n(r.latency_seen_s), click: n(r.latency_click_s),
+      })
+    }
+    if (data.length < PAGE) break
+  }
+  return latency
 }
 
 // The pages beyond the per-book ones this user may open, as granted in

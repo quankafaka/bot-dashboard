@@ -1,6 +1,6 @@
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase, configError, isPublic } from './supabase'
-import { fetchWagers, fetchAccounts, fetchAccountBalances, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchPageAccess } from './lib/data'
+import { fetchWagers, fetchAccounts, fetchAccountBalances, fetchBooks, fetchStrategies, fetchLimits, fetchModelPrices, fetchDevig, fetchLatency, fetchPageAccess } from './lib/data'
 import { accountBalance } from './lib/metrics'
 import { money } from './lib/format'
 import Login from './components/Login'
@@ -31,7 +31,15 @@ const OVERALL = 'overall'
 
 // The facts each bet carries from the side views (data.js), set on the rows
 // in place: on the whole history at load, on just the new bets after.
-function enrich(w, [labels, limits, models, devig]) {
+function enrich(w, [labels, limits, models, devig, latency]) {
+  // Seconds each steam bet took to reach Confirm (migration 018). Null on
+  // model and hand-logged bets, older ones, and all until it has run.
+  for (const r of w) {
+    const t = latency?.get(r.wager_id)
+    r.latency_signal_s = t?.signal ?? null
+    r.latency_seen_s = t?.seen ?? null
+    r.latency_click_s = t?.click ?? null
+  }
   // Which system took each bet (migration 008). Missing label: 'steam'
   // for the bot's own and hand-logged rows, unattributed for BIA-only.
   for (const r of w) {
@@ -133,6 +141,7 @@ function Dashboard({ email }) {
   const [loadedAt, setLoadedAt] = useState(null)
   const [loading, setLoading] = useState(false)
   const [labelsReady, setLabelsReady] = useState(false)
+  const [progress, setProgress] = useState({ loaded: 0, total: null })
   const [tab, setTab] = useState('performance')
   const [filters, setFilters] = useState({
     book: null, period: 'all', accounts: [], includeManual: true,
@@ -141,16 +150,16 @@ function Dashboard({ email }) {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const [w, a, b, labels, limits, models, devig, p, ab] = await Promise.all([
-        fetchWagers(), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
-        fetchModelPrices(), fetchDevig(), fetchPageAccess(), fetchAccountBalances()])
+      const [w, a, b, labels, limits, models, devig, p, ab, latency] = await Promise.all([
+        fetchWagers({ onProgress: (loaded, total) => setProgress({ loaded, total }) }), fetchAccounts(), fetchBooks(), fetchStrategies(), fetchLimits(),
+        fetchModelPrices(), fetchDevig(), fetchPageAccess(), fetchAccountBalances(), fetchLatency()])
       // Each account's own starting balance goes with the book it bets on
       // (migration 014), which then shows a balance per account.
       for (const book of b) {
         const tags = new Set(w.filter((r) => r.book === book.name).map((r) => r.account))
         book.accountBalances = ab.filter((x) => tags.has(x.tag))
       }
-      enrich(w, [labels, limits, models, devig])
+      enrich(w, [labels, limits, models, devig, latency])
       setLabelsReady(labels != null)
       // Only the books this user may see (fetchBooks), so a restricted book's
       // bets never sit in memory for anyone else.
@@ -196,7 +205,7 @@ function Dashboard({ email }) {
         .filter((r) => allowed.has(r.book) && !known.has(r.wager_id))
       if (!fresh.length) return
       const ids = fresh.map((r) => r.wager_id)
-      enrich(fresh, await Promise.all([fetchStrategies(ids), fetchLimits(ids), fetchModelPrices(ids), fetchDevig(ids)]))
+      enrich(fresh, await Promise.all([fetchStrategies(ids), fetchLimits(ids), fetchModelPrices(ids), fetchDevig(ids), fetchLatency(ids)]))
       setRows((cur) => {
         const ids = new Set(cur.map((r) => r.wager_id))
         const add = fresh.filter((r) => !ids.has(r.wager_id))
@@ -335,7 +344,28 @@ function Dashboard({ email }) {
           Could not load wagers: {error}. Check that your user can read v_wager, then press Refresh.
         </p>
       )}
-      {!rows && !error && <p className="muted pad">Loading wagers…</p>}
+      {!rows && !error && (() => {
+        const { loaded, total } = progress
+        // Wagers arrive before the side views finish; hold at 99% until all are in.
+        const pct = total ? Math.min(99, Math.round((loaded / total) * 100)) : 0
+        return (
+          <div className="loader" role="progressbar" aria-label="Loading wagers"
+            aria-valuemin={0} aria-valuemax={total ?? undefined} aria-valuenow={total ? loaded : undefined}>
+            <div className="loader-head">
+              <span>Loading wagers</span>
+              <span className="loader-pct">{total ? `${pct}%` : ''}</span>
+            </div>
+            <div className={`loader-track ${total ? '' : 'indeterminate'}`}>
+              <div className="loader-fill" style={{ width: total ? `${pct}%` : undefined }} />
+            </div>
+            <div className="loader-count">
+              {total
+                ? <><strong>{loaded.toLocaleString()}</strong> of {total.toLocaleString()} bets</>
+                : loaded ? <><strong>{loaded.toLocaleString()}</strong> bets</> : 'Connecting…'}
+            </div>
+          </div>
+        )
+      })()}
       {rows && books?.length === 0 && (
         <p className="empty-state">
           No bot has been shared with {email} yet. Ask Alex to give this account access.

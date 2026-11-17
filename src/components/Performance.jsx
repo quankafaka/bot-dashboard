@@ -20,6 +20,19 @@ export default function Performance({ rows, filters, setFilters, currency, accou
   const s = useMemo(() => summarize(filtered), [filtered])
   const series = useMemo(() => cumulative(filtered), [filtered])
   const luck = s.profit - s.expected
+  // Steam latency (migration 018): medians over the bets that carry it.
+  const lat = useMemo(() => {
+    const median = (xs) => {
+      const v = xs.filter((x) => x != null).sort((a, b) => a - b)
+      return v.length ? (v[(v.length - 1) >> 1] + v[v.length >> 1]) / 2 : null
+    }
+    const timed = filtered.filter((r) => r.latency_seen_s != null)
+    return {
+      n: timed.length,
+      seen: median(timed.map((r) => r.latency_seen_s)),
+      click: median(timed.map((r) => r.latency_click_s)),
+    }
+  }, [filtered])
 
   return (
     <>
@@ -36,6 +49,10 @@ export default function Performance({ rows, filters, setFilters, currency, accou
         <Card label={<Hint term={term('Expected yield')}>Expected yield</Hint>} value={pct(s.expYield, { digits: 2 })}
           valueTone={tone(s.expYield)}
           sub={basis === 'model' ? "From the model's fair price at placement" : 'From the closing line, not the EV at placement'} />
+        {lat.n > 0 && (
+          <Card label="Latency" value={`${lat.seen.toFixed(1)}s`}
+            sub={`Median, alert seen to Confirm${lat.click != null ? `; ${lat.click.toFixed(1)}s of it clicking` : ''}. ${lat.n} steam bets`} />
+        )}
       </div>
 
       <section className="panel">
